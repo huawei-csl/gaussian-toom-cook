@@ -1,0 +1,12 @@
+/* Copyright (c) 2026 Huawei Technologies Co., Ltd.
+   SPDX-License-Identifier: BSD-3-Clause-Clear
+
+   The symbols libgtc.so exports: those of include/gtc.h.  */
+{
+  global:
+    gtc_config_default; gtc_ctx_new; gtc_ctx_free; gtc_ctx_config;
+    r2gtc_mul_n_ctx; r2gtc_22_ctx; r2gtc_33_ctx; r2gtc_44_ctx; r2gtc_55_ctx;
+    r2gtc_mul_ctx; r2gtc_mpz_mul_ctx; r2gtc_mul_n; r2gtc_mul; r2gtc_mpz_mul;
+    gtc_mul_n_ctx; gtc_22_ctx; gtc_33_ctx; gtc_44_ctx; gtc_55_ctx;
+  local: *;
+};

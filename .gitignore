@@ -1,0 +1,13 @@
+# Objects, libraries, tests, benchmarks, the GMP tarball and the generated
+# declarations: make's build directories (B=build-x for others).
+build/
+build-*/
+
+# tools/tune.sh's output
+tune-out/
+
+# Byte-compiled python (tools/).
+__pycache__/
+
+# Benchmark results (bench_gtc --csv).
+*.csv

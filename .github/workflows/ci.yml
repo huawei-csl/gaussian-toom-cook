@@ -1,0 +1,72 @@
+# Copyright (c) 2026 Huawei Technologies Co., Ltd.
+# SPDX-License-Identifier: BSD-3-Clause-Clear
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} ${{ matrix.build }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, ubuntu-24.04-arm]
+        build: [default, no-asm, asan]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GMP
+        run: sudo apt-get update && sudo apt-get install -y libgmp-dev
+      - name: Cache the GMP source
+        uses: actions/cache@v4
+        with:
+          path: gmp-cache
+          key: gmp-6.3.0
+      - name: Fetch the GMP declarations
+        run: |
+          mkdir -p gmp-cache build
+          if [ -f gmp-cache/gmp-6.3.0.tar.xz ]; then
+            cp gmp-cache/gmp-6.3.0.tar.xz build/
+          fi
+          ./tools/fetch_gmp.sh build/gmp_decls.h
+          cp build/gmp-6.3.0.tar.xz gmp-cache/
+      - name: Build and test
+        if: matrix.build == 'default'
+        run: |
+          make -j4 EXTRA_CFLAGS=-Werror
+          make -j4 EXTRA_CFLAGS=-Werror check
+          build/bench_gtc --quick
+      - name: Install and link through pkg-config
+        if: matrix.build == 'default'
+        run: |
+          make install PREFIX=$PWD/inst
+          cat > smoke.c <<'EOF'
+          #include <gtc.h>
+          int main (void)
+          {
+            mpz_t a, b, r, s;
+            mpz_inits (a, b, r, s, NULL);
+            mpz_ui_pow_ui (a, 3, 40000);
+            mpz_ui_pow_ui (b, 7, 30000);
+            r2gtc_mpz_mul (r, a, b);
+            mpz_mul (s, a, b);
+            return mpz_cmp (r, s) != 0;
+          }
+          EOF
+          export PKG_CONFIG_PATH=$PWD/inst/lib/pkgconfig
+          gcc -o smoke smoke.c $(pkg-config --cflags --libs libgtc)
+          LD_LIBRARY_PATH=$PWD/inst/lib ./smoke
+      - name: Build and test without the assembly
+        if: matrix.build == 'no-asm'
+        run: |
+          make -j4 NO_ASM=1 EXTRA_CFLAGS=-Werror
+          make -j4 NO_ASM=1 EXTRA_CFLAGS=-Werror check
+      - name: AddressSanitizer and UndefinedBehaviorSanitizer
+        if: matrix.build == 'asan'
+        run: make -j4 check-asan
