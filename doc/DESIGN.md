@@ -23,7 +23,7 @@ the library does and how to use it.
 | `src/libgtc.map` | the symbols the shared library exports: those of `gtc.h` |
 | `tools/fetch_gmp.sh` | takes the declarations of the GMP internals used from the GMP source |
 | `tools/tune.sh` | the per-size tables for a machine |
-| `bench/` | `bench_gtc` (the comparisons with GMP) and `tune_gauss` (thresholds and tables) |
+| `bench/` | `bench_gtc` (the comparisons with GMP), `bench_gauss` (the Gaussian products against three of GMP's) and `tune_gauss` (thresholds and tables) |
 | `tests/` | `test_gtc` (black-box, against GMP) and `test_helpers` (white-box) |
 
 The library is one translation unit so that the compiler sees every
@@ -50,7 +50,8 @@ value being (−1)^neg times the stored one. A signed linear combination
 is one pass of addition or subtraction chosen by the flags; negation and
 multiplication by i swap pointers or flip a flag. Halvings and the exact
 divisions by 5 and 15 run as single passes, the latter by GMP's
-`mpn_bdiv_dbm1c` step, with or without the assembly.
+`mpn_bdiv_dbm1c` step, or on some cores in the assembly by two carry
+chains (see below).
 
 ## The algorithms
 
@@ -161,7 +162,17 @@ are checked in so that a build needs no Python.
   parked in a register between blocks of limbs): additions of both
   components, three-operand sums, halvings and shifts fused with the sum
   before them, the exact divisions by 5 and 15 fused with the sums that
-  feed them.
+  feed them, and whole steps of `gtc_55`'s interpolation in one pass
+  each (`gtc_tc5*_n`): for instance a sum, its shift, the division by 5
+  and the additions of the quotient into two coefficients. `r2gtc_55`'s
+  interpolation runs on the same kernels. Some kernels divide by two
+  carry chains of one cycle a limb, where GMP's exact division
+  (`mpn_bdiv_dbm1c`) is one chain of two, a subtraction and a
+  subtraction with borrow on its result. That division gives the
+  quotient's negative: the code after takes −q with its flag flipped
+  (`gtc_div15n_lsh_n`, `gtc_div5n_rlsh_n`, and `gtc_tc5q8_n` where q is
+  added), or the numerator is negated first (`gtc_tc5s_n`'s (c − t)/5
+  on the Intel cores).
 
 On x86-64 the sections are aligned to 64 bytes, so that a change in the
 size of the C code does not move the kernels within the 64-byte fetch
@@ -192,7 +203,7 @@ libgtc links against an installed libgmp. It calls the public `mpn` and
 rational base cases), `mpn_bdiv_dbm1c` (the exact divisions),
 `mpn_addlsh1_n`, `mpn_sublsh1_n`, `mpn_rsblsh1_n`, `mpn_addlsh2_n`,
 `mpn_rsblsh2_n`, `mpn_rsh1add_n` and `mpn_rsh1sub_n` (the latter two in
-the portable build only), and for the benchmark `mpn_toom33_mul`,
+the portable build only), and for the benchmarks `mpn_toom33_mul`,
 `mpn_toom44_mul` and `mpn_toom6h_mul`. The `lsh` and `rsh1` functions
 exist only in a libgmp built with its assembly; libgtc takes
 `mpn_rsh1add_n` and `mpn_rsh1sub_n` as weak symbols and falls back to
@@ -213,5 +224,6 @@ scratch guarded by canaries. `test_helpers` includes the library source
 and checks the internal helpers and every assembly kernel against `mpz`
 or GMP in all their modes, including branches that the current
 interpolation sequences never take. `make check` runs them with and
-without the assembly, with the portable halving, and on x86-64 also with
-the Zen's code paths, C and assembly, whatever the machine.
+without the assembly, with the portable halving, and on x86-64, whatever
+the machine, also with the Zen's code paths and with the other cores',
+C and assembly, the latter's Gaussian Toom-5 also at small sizes.

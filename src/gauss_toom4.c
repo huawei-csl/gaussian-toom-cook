@@ -260,9 +260,19 @@ reg_add3 (mp_ptr dp, sreg x, sreg y, int sy, sreg z, int sz, mp_size_t w)
 
 #ifdef GTC_ACC_ASM
 /* q5 = (R5 - 4 q3 - 8 q4)/15 in one pass: the sums and GMP's exact
-   division by 15 fused.  */
+   division by 15 fused.  GTC_TC4_DIV15N: -q5, the division by two carry
+   chains, the flag flipped after.  Per microarchitecture.  */
 mp_limb_t gtc_div15_lsh_n (mp_ptr, mp_srcptr, mp_srcptr, mp_srcptr,
 			   mp_size_t, unsigned);
+#if defined (GTC_ZEN)
+#define GTC_TC4_DIV15N 1
+mp_limb_t gtc_div15n_lsh_n (mp_ptr, mp_srcptr, mp_srcptr, mp_srcptr,
+			    mp_size_t, unsigned);
+#define GTC_DIV15_LSH_N gtc_div15n_lsh_n
+#else
+#define GTC_TC4_DIV15N 0
+#define GTC_DIV15_LSH_N gtc_div15_lsh_n
+#endif
 #endif
 
 /* x +- c u by gtc_aorsmul_1 on x86-64 (one call site, the Toom-4 style
@@ -486,8 +496,9 @@ tc4_interp_comp (mp_ptr P, sreg *x, mp_size_t k, mp_size_t h,
   l6 = P[6 * k];
   x[3] = reg_add3 (P + 4 * k, x[1], r0, -1, x[3], 1, w);
 #ifdef GTC_ACC_ASM
-  gtc_div15_lsh_n (x[5].p, x[5].p, x[2].p, x[3].p, w,
+  GTC_DIV15_LSH_N (x[5].p, x[5].p, x[2].p, x[3].p, w,
 		   (x[5].neg == x[2].neg) | (x[5].neg == x[3].neg) << 1);
+  x[5].neg ^= GTC_TC4_DIV15N;
 #else
   x[5] = reg_aorsmul (x[5], x[2], 4, -1, w, w);
   x[5] = reg_aorsmul (x[5], x[3], 8, -1, w, w);
@@ -595,12 +606,14 @@ gtc_44_interp_coeffs (mp_ptr P, mp_ptr Q, mp_size_t k, mp_size_t h,
      B^w, right on two's complement */
 #ifdef GTC_ACC_ASM
   /* the kernel subtracts 4 y (8 z) where the flags agree */
-  gtc_div15_lsh_n (re[5].p, re[5].p, re[2].p, re[3].p, w,
+  GTC_DIV15_LSH_N (re[5].p, re[5].p, re[2].p, re[3].p, w,
 		   (re[5].neg == re[2].neg)
 		   | (re[5].neg == re[3].neg) << 1);
-  gtc_div15_lsh_n (im[5].p, im[5].p, im[2].p, im[3].p, w,
+  GTC_DIV15_LSH_N (im[5].p, im[5].p, im[2].p, im[3].p, w,
 		   (im[5].neg == im[2].neg)
 		   | (im[5].neg == im[3].neg) << 1);
+  re[5].neg ^= GTC_TC4_DIV15N;
+  im[5].neg ^= GTC_TC4_DIV15N;
 #else
   re[5] = reg_aorsmul (re[5], re[2], 4, -1, w, w);
   im[5] = reg_aorsmul (im[5], im[2], 4, -1, w, w);

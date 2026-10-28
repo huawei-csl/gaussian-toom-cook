@@ -251,21 +251,6 @@ acc (mp_ptr p, mp_size_t len, sreg q, mp_size_t qw)
     }
 }
 
-/* acc's limbs above qw (qw < len), after its qw limbs were added (or
-   subtracted) elsewhere with carry (or borrow) c.  */
-GTC_INLINE void
-acc_tail (mp_ptr p, mp_size_t len, sreg q, mp_size_t qw, mp_limb_t c)
-{
-  mp_limb_t ext = (q.p[qw - 1] & HIGHBIT) != 0;
-  if (c != ext)
-    {
-      if ((c > ext) != (q.neg != 0))
-	mpn_add_1 (p + qw, p + qw, len - qw, 1);
-      else
-	mpn_sub_1 (p + qw, p + qw, len - qw, 1);
-    }
-}
-
 /* {p, len} += v, v a signed limb (mod B^len).  */
 GTC_INLINE void
 acc_limb (mp_ptr p, mp_size_t len, mp_limb_t v)

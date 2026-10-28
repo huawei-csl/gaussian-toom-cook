@@ -1,7 +1,7 @@
 # libgtc
 
 Long integer multiplication through Gaussian integers, on top of
-[GMP](https://gmplib.org). Version 0.1.0.
+[GMP](https://gmplib.org). Version 0.1.1.
 
 libgtc multiplies rational integers by reducing a product to smaller
 rational products and *Gaussian* products (of numbers a + bi), and
@@ -30,17 +30,17 @@ kernels it selects itself.
 
 | time ratio | Xeon W-1270 (Comet Lake) | EPYC 7763 (Zen 3) | Xeon Gold 6238T (Cascade Lake) | Kunpeng 920 |
 |---|---|---|---|---|
-| `r2gtc_22` ÷ `mpn_toom22_mul` | 0.77 | 1.00 | 0.93 | 0.93 |
-| `r2gtc_33` ÷ `mpn_toom33_mul` | 0.72 | 0.92 | 0.87 | 0.78 |
-| `r2gtc_44` ÷ `mpn_toom44_mul` | 0.68 | 0.89 | 0.83 | 0.82 |
-| `r2gtc_55` ÷ `mpn_toom44_mul` | 0.63 | 0.82 | 0.77 | 0.74 |
-| `r2gtc_55` ÷ `mpn_toom6h_mul` | 0.66 | 0.87 | 0.81 | 0.81 |
-| `r2gtc` ÷ `mpn_mul_n` | 0.69 | 0.91 | 0.84 | 0.85 |
+| `r2gtc_22` ÷ `mpn_toom22_mul` | 0.79 | 0.98 | 0.93 | 0.93 |
+| `r2gtc_33` ÷ `mpn_toom33_mul` | 0.74 | 0.90 | 0.88 | 0.78 |
+| `r2gtc_44` ÷ `mpn_toom44_mul` | 0.70 | 0.87 | 0.82 | 0.82 |
+| `r2gtc_55` ÷ `mpn_toom44_mul` | 0.64 | 0.80 | 0.76 | 0.73 |
+| `r2gtc_55` ÷ `mpn_toom6h_mul` | 0.66 | 0.85 | 0.79 | 0.79 |
+| `r2gtc` ÷ `mpn_mul_n` | 0.70 | 0.90 | 0.83 | 0.83 |
 
 GMP has no balanced Toom-Cook-5; its neighbours are Toom-4 and Toom-6.5
 (`mpn_toom6h_mul`). `mpn_mul_n` is GMP's full multiplication, FFT
-included. `r2gtc` takes less time than `mpn_mul_n` up to about 3,000
-limbs on the Zen 3, 3,800 on the Kunpeng 920, 5,100 on the Cascade Lake
+included. `r2gtc` takes less time than `mpn_mul_n` up to about 3,500
+limbs on the Zen 3, 4,200 on the Kunpeng 920, 5,100 on the Cascade Lake
 and beyond 10,000 on the Comet Lake. Above that GMP's Toom-8.5 and FFT
 win; libgtc has no FFT.
 
@@ -79,7 +79,7 @@ Requirements: Linux (or another ELF system), GCC, GNU make, GMP
 wget for the first build. Python 3 only to regenerate the assembly.
 
 ```sh
-make                 # build/libgtc.a, build/libgtc.so, the benchmark and the tuner
+make                 # build/libgtc.a, build/libgtc.so, the benchmarks and the tuner
 make check           # the tests (a few minutes)
 make install         # PREFIX=/usr/local; DESTDIR for staging
 ```
@@ -136,6 +136,9 @@ sign-magnitude form. See [include/gtc.h](include/gtc.h).
 * `build/bench_gtc --compare 22|33|44|55|r2gtc` runs the comparisons
   above (`--help` for the options; `--csv FILE` writes the results).
   Pin it to a core of an otherwise idle machine (`--pin CPU`).
+* `build/bench_gauss --compare g33|g44|g55` compares the Gaussian
+  products `gtc_33` .. `gtc_55` with three real products by GMP's
+  Toom-Cook (`--help` for the options).
 * `tools/tune.sh [CPU]` finds the per-size tables for the machine (a few
   hours); `build/tune_gauss` the thresholds (`--help`). Both print what
   `gtc_config` takes and `src/config.h` holds as defaults.

@@ -15,6 +15,21 @@
 
 #include <string.h>
 
+#ifdef GTC_ASM_X86
+/* The Gaussian Toom-5's kernels that gtc.c declares only on the machines
+   that take them; tested on every x86-64.  */
+mp_limb_t gtc_bfly_n (mp_ptr, mp_ptr, mp_srcptr, mp_srcptr, mp_size_t);
+mp_limb_t gtc_bflyq_n (mp_ptr, mp_ptr, mp_srcptr, mp_srcptr, mp_size_t);
+void gtc_tc5a_n (mp_ptr, mp_srcptr, mp_srcptr, mp_srcptr, mp_size_t,
+		 mp_size_t);
+mp_limb_t gtc_aors2c_n (mp_ptr, mp_ptr, mp_srcptr, mp_srcptr, mp_size_t,
+			unsigned);
+void gtc_tc5uy_n (mp_ptr, mp_srcptr, mp_srcptr, mp_srcptr, mp_srcptr,
+		  mp_size_t, mp_size_t, mp_ptr);
+void gtc_tc5uys_n (mp_ptr, mp_ptr, mp_srcptr, mp_srcptr, mp_srcptr,
+		   mp_size_t, mp_size_t, mp_ptr, mp_srcptr);
+#endif
+
 static unsigned long long rs = 88172645463325252ULL;
 static long checks, failures;
 
@@ -546,16 +561,17 @@ main (void)
     }
 
 #ifdef GTC_ACC_ASM
-  /* The Toom-4's fused division (gtc_div15_lsh_n), every length to 40 and
-     every sign, in place or not, with extreme limbs: x is made 15 q -+ 4 y
-     -+ 8 z modulo B^n, and the kernel must give back q, and leave the
-     limb after the result alone.  */
+  /* The Toom-4's fused division (gtc_div15_lsh_n; on the Zen also its
+     negative, gtc_div15n_lsh_n), every length to 40 and every sign, in
+     place or not, with extreme limbs: x is made 15 q -+ 4 y -+ 8 z modulo
+     B^n, and the kernel must give back q (-q), and leave the limb after
+     the result alone.  */
   for (long it = 0; it < 40000; it++)
     {
       mp_size_t n = rnd () % 41;
       unsigned sg = rnd () & 3;
       int inpl = rnd () & 1;
-      mp_limb_t x[42], y[41], z[41], q[41], t[41], r[42];
+      mp_limb_t x[42], y[41], z[41], q[41], t[41], r[42], x0[41];
       fill (y, 41);
       fill (z, 41);
       fill (q, 41);
@@ -573,11 +589,22 @@ main (void)
 	  else
 	    mpn_sub_n (x, x, t, n);
 	}
+      memcpy (x0, x, n * sizeof (mp_limb_t));
       x[n] = r[n] = 0x5a5a5a5a5a5a5a5aULL;
       gtc_div15_lsh_n (inpl ? x : r, x, y, z, n, sg);
       check ((n == 0 || mpn_cmp (inpl ? x : r, q, n) == 0)
 	     && (inpl ? x : r)[n] == 0x5a5a5a5a5a5a5a5aULL,
 	     "gtc_div15_lsh_n", it);
+#if GTC_TC4_DIV15N
+      memcpy (x, x0, n * sizeof (mp_limb_t));
+      x[n] = r[n] = 0x5a5a5a5a5a5a5a5aULL;
+      gtc_div15n_lsh_n (inpl ? x : r, x, y, z, n, sg);
+      if (n > 0)
+	mpn_neg (t, q, n);
+      check ((n == 0 || mpn_cmp (inpl ? x : r, t, n) == 0)
+	     && (inpl ? x : r)[n] == 0x5a5a5a5a5a5a5a5aULL,
+	     "gtc_div15n_lsh_n", it);
+#endif
     }
 #endif
 
@@ -612,12 +639,13 @@ main (void)
 #endif
 
 #if GTC_RTC4_SHLD
-  /* gtc_div5_rlsh_n: (x + 4 y)/5, or (4 y - x)/5 with rsb; x is made
-     5 q - 4 y, or 4 y - 5 q.  */
+  /* gtc_div5n_rlsh_n: -(x + 4 y)/5, or (x - 4 y)/5 with sub; x is made
+     5 q - 4 y, where the kernel must give back -q, or 5 q + 4 y, where
+     q.  */
   for (long it = 0; it < 40000; it++)
     {
       mp_size_t n = rnd () % 41;
-      unsigned rsb = rnd () & 1;
+      unsigned sub = rnd () & 1;
       int inpl = rnd () & 1;
       mp_limb_t x[42], y[41], q[41], t[41], r[42];
       fill (y, 41);
@@ -626,16 +654,19 @@ main (void)
 	{
 	  mpn_mul_1 (x, q, n, 5);
 	  mpn_lshift (t, y, n, 2);
-	  if (rsb)
-	    mpn_sub_n (x, t, x, n);
+	  if (sub)
+	    mpn_add_n (x, x, t, n);
 	  else
-	    mpn_sub_n (x, x, t, n);
+	    {
+	      mpn_sub_n (x, x, t, n);
+	      mpn_neg (q, q, n);
+	    }
 	}
       x[n] = r[n] = 0x5a5a5a5a5a5a5a5aULL;
-      gtc_div5_rlsh_n (inpl ? x : r, x, y, n, rsb);
+      gtc_div5n_rlsh_n (inpl ? x : r, x, y, n, sub);
       check ((n == 0 || mpn_cmp (inpl ? x : r, q, n) == 0)
 	     && (inpl ? x : r)[n] == 0x5a5a5a5a5a5a5a5aULL,
-	     "gtc_div5_rlsh_n", it);
+	     "gtc_div5n_rlsh_n", it);
     }
 #endif
 
@@ -664,171 +695,47 @@ main (void)
     }
 
 #ifdef GTC_ACC_ASM
-  /* The Toom-5's division by 5 of a sum already divided by 4
-     (gtc_div5_add_n), every length to 40, all three modes, in place on x
-     or y or not, with extreme limbs: x made 5 q - y, 5 q + y or y - 5 q
-     modulo B^n, and the kernel must give back q, and leave the limb after
-     the result alone.  */
-  for (long it = 0; it < 40000; it++)
-    {
-      mp_size_t n = rnd () % 41;
-      unsigned mode = (unsigned) (rnd () % 3);
-      int where = (int) (rnd () % 3);	/* 0: apart; 1, 2: on x, y */
-      mp_limb_t x[42], y[42], q[41], t[41], r[42];
-      fill (y, 41);
-      fill (q, 41);
-      if (n > 0)
-	{
-	  mpn_mul_1 (t, q, n, 5);
-	  if (mode == 0)
-	    mpn_sub_n (x, t, y, n);
-	  else if (mode == 1)
-	    mpn_add_n (x, t, y, n);
-	  else
-	    mpn_sub_n (x, y, t, n);
-	}
-      x[n] = y[n] = r[n] = 0x5a5a5a5a5a5a5a5aULL;
-      mp_ptr d = where == 1 ? x : where == 2 ? y : r;
-      gtc_div5_add_n (d, x, y, n, mode);
-      check ((n == 0 || mpn_cmp (d, q, n) == 0)
-	     && d[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_div5_add_n", it);
-    }
-  /* The shifted sums of the Toom-5 (gtc_rsh2add_n, gtc_rsh2sub_n,
-     gtc_rsh2add3_n, gtc_rsh3add3_n), every length to 40, in place on any
-     operand or not, with extreme limbs, against mpz: the sum modulo B^n
-     read as a two's complement number and shifted arithmetically, and
-     for the first two the bits shifted out.  */
+  /* The quarter sums of the Toom-5 (gtc_rsh2add_n, gtc_rsh2sub_n),
+     every length to 40, in place on either operand or not, with extreme
+     limbs, against mpz: the sum modulo B^n read as a two's complement
+     number and shifted arithmetically, and the bits shifted out.  */
   for (long it = 0; it < 80000; it++)
     {
       mp_size_t n = 1 + rnd () % 40;
-      int kind = (int) (rnd () % 4);	/* rsh2add, rsh2sub, rsh2add3, rsh3add3 */
-      unsigned comp = rnd () & 1, sh = kind == 3 ? 3 : 2;
-      int where = (int) (rnd () % 4);	/* 0: r apart; 1..3: on a, b, c */
-      mp_limb_t a[48], b[48], c[48], r[48], ret, low;
+      int sub = rnd () & 1;
+      int where = (int) (rnd () % 3);	/* 0: r apart; 1, 2: on a, b */
+      mp_limb_t a[48], b[48], r[48], ret, low;
       for (mp_size_t i = 0; i < n; i++)
 	{
 	  a[i] = limb ();
 	  b[i] = limb ();
-	  c[i] = limb ();
 	}
-      nat_value (X, a, n);
-      nat_value (Y, b, n);
-      nat_value (G, c, n);
-      if (kind < 2)
-	{
-	  if (kind) mpz_sub (E, X, Y); else mpz_add (E, X, Y);
-	  if (where == 3)
-	    where = 0;
-	}
-      else
-	{
-	  mpz_add (E, Y, G);
-	  if (comp) mpz_sub (E, E, X); else mpz_add (E, E, X);
-	}
-      mpz_fdiv_r_2exp (E, E, GMP_NUMB_BITS * n);
-      low = mpz_getlimbn (E, 0) & ((1u << sh) - 1);
-      if (mpz_tstbit (E, GMP_NUMB_BITS * n - 1))
-	{
-	  mpz_set_ui (X, 1);
-	  mpz_mul_2exp (X, X, GMP_NUMB_BITS * n);
-	  mpz_sub (E, E, X);
-	}
-      mpz_fdiv_q_2exp (E, E, sh);
-      mpz_fdiv_r_2exp (E, E, GMP_NUMB_BITS * n);
-      mp_ptr d = where == 1 ? a : where == 2 ? b : where == 3 ? c : r;
-      if (kind == 0)
-	ret = gtc_rsh2add_n (d, a, b, n);
-      else if (kind == 1)
-	ret = gtc_rsh2sub_n (d, a, b, n);
-      else
-	ret = (kind == 2 ? gtc_rsh2add3_n : gtc_rsh3add3_n) (d, a, b, c, n,
-							      comp);
-      nat_value (G, d, n);
-      check (mpz_cmp (E, G) == 0 && (kind >= 2 || ret == low),
-	     "rsh2add/rsh2add3/rsh3add3", it);
-    }
-#endif
-
-#if defined (GTC_ASM_X86) || (defined (__aarch64__) && defined (GTC_ACC_ASM))
-  /* The Toom-5s' second kernels.  gtc_div5_add_sub_n and
-     gtc_div5_add_acc_n: gtc_div5_add_n's q (x as in its test above) and,
-     in the same pass, z - q into sp (z = y with mode bit 2, else x), or
-     ap +- q with the carry or borrow; every length to 40, all modes, the
-     acc kernel also in place on x or y.  gtc_rsh3add_n, gtc_rsh3sub_n:
-     (a +- b mod B^n) >> 3, arithmetic, and the bits shifted out.
-     gtc_t5r_n: d = x0 - 4 x4 (or 4 x4 - x0) and dm = 4 y - d over m
-     limbs (a multiple of 4), the shifted limbs taking the top bits of
-     x4[-1] and y[-1], the borrows in and out; against GMP's shifts and
-     subtractions.  The limb after each result left alone.  */
-  for (long it = 0; it < 40000; it++)
-    {
-      mp_size_t n = rnd () % 41;
-      unsigned mode = (unsigned) (rnd () % 3) | (rnd () & 4);
-      int acc = rnd () & 1, where = acc ? (int) (rnd () % 3) : 0;
-      mp_limb_t x[42], y[42], q[41], t[41], r[42], z[42], ref[42], cr = 0, c;
-      fill (y, 41);
-      fill (q, 41);
-      fill (z, 41);
-      if (n > 0)
-	{
-	  mpn_mul_1 (t, q, n, 5);
-	  if ((mode & 3) == 0)
-	    mpn_sub_n (x, t, y, n);
-	  else if ((mode & 3) == 1)
-	    mpn_add_n (x, t, y, n);
-	  else
-	    mpn_sub_n (x, y, t, n);
-	}
-      mpn_copyi (ref, z, n);
-      if (n > 0)
-	{
-	  if (!acc)
-	    mpn_sub_n (ref, mode & 4 ? y : x, q, n);
-	  else
-	    cr = mode & 4 ? mpn_sub_n (ref, ref, q, n)
-	      : mpn_add_n (ref, ref, q, n);
-	}
-      x[n] = y[n] = r[n] = z[n] = 0x5a5a5a5a5a5a5a5aULL;
-      mp_ptr d = where == 1 ? x : where == 2 ? y : r;
-      if (acc)
-	c = gtc_div5_add_acc_n (d, x, y, n, mode, z);
-      else
-	{
-	  gtc_div5_add_sub_n (d, x, y, n, mode, z);
-	  c = cr;
-	}
-      check ((n == 0 || (mpn_cmp (d, q, n) == 0 && mpn_cmp (z, ref, n) == 0))
-	     && c == cr && d[n] == 0x5a5a5a5a5a5a5a5aULL
-	     && z[n] == 0x5a5a5a5a5a5a5a5aULL,
-	     acc ? "gtc_div5_add_acc_n" : "gtc_div5_add_sub_n", it);
-    }
-  for (long it = 0; it < 40000; it++)
-    {
-      mp_size_t n = 1 + rnd () % 40;
-      int sub = rnd () & 1, where = (int) (rnd () % 3);
-      mp_limb_t a[42], b[42], r[42], ret, low;
-      fill (a, n);
-      fill (b, n);
       nat_value (X, a, n);
       nat_value (Y, b, n);
       if (sub) mpz_sub (E, X, Y); else mpz_add (E, X, Y);
       mpz_fdiv_r_2exp (E, E, GMP_NUMB_BITS * n);
-      low = mpz_getlimbn (E, 0) & 7;
+      low = mpz_getlimbn (E, 0) & 3;
       if (mpz_tstbit (E, GMP_NUMB_BITS * n - 1))
 	{
 	  mpz_set_ui (X, 1);
 	  mpz_mul_2exp (X, X, GMP_NUMB_BITS * n);
 	  mpz_sub (E, E, X);
 	}
-      mpz_fdiv_q_2exp (E, E, 3);
+      mpz_fdiv_q_2exp (E, E, 2);
       mpz_fdiv_r_2exp (E, E, GMP_NUMB_BITS * n);
       mp_ptr d = where == 1 ? a : where == 2 ? b : r;
-      d[n] = 0x5a5a5a5a5a5a5a5aULL;
-      ret = (sub ? gtc_rsh3sub_n : gtc_rsh3add_n) (d, a, b, n);
+      ret = (sub ? gtc_rsh2sub_n : gtc_rsh2add_n) (d, a, b, n);
       nat_value (G, d, n);
-      check (mpz_cmp (E, G) == 0 && ret == low
-	     && d[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_rsh3add_n/sub_n", it);
+      check (mpz_cmp (E, G) == 0 && ret == low, "rsh2add/rsh2sub", it);
     }
+#endif
+
+#if defined (GTC_ASM_X86) || (defined (__aarch64__) && defined (GTC_ACC_ASM))
+  /* gtc_t5r_n, the Gaussian Toom-5's t5 pass: d = x0 - 4 x4 (or 4 x4 -
+     x0) and dm = 4 y - d over m limbs (a multiple of 4), the shifted
+     limbs taking the top bits of x4[-1] and y[-1], the borrows in and
+     out; against GMP's shifts and subtractions.  The limb after each
+     result left alone.  */
   for (long it = 0; it < 40000; it++)
     {
       mp_size_t m = 4 * (1 + rnd () % 10);
@@ -853,12 +760,380 @@ main (void)
     }
 #endif
 
+#ifdef GTC_ACC_ASM
+  /* gtc_tc5quad_n: P = a + b, M = a - b, Q = c + d, N = c - d; a = H1, c =
+     H2, b = (G +- D) >> 2, d = (G -+ D) >> 2 (G, H1 = P, M or M, P; D, H2
+     = Q, N or N, Q; the shifts arithmetic), all eight modes, every n to
+     64, against GMP's sums and shifts; the limb after each row left
+     alone.  */
+  for (long it = 0; it < 80000; it++)
+    {
+      mp_size_t n = 1 + rnd () % 64;
+      unsigned m = (unsigned) (rnd () % 8);
+      mp_limb_t a[65], b[65], c[65], d[65];
+      mp_limb_t P_[64], M_[64], Q_[64], N_[64], X[64], Y[64];
+      fill (a, n);
+      fill (b, n);
+      fill (c, n);
+      fill (d, n);
+      mpn_add_n (P_, a, b, n);
+      mpn_sub_n (M_, a, b, n);
+      mpn_add_n (Q_, c, d, n);
+      mpn_sub_n (N_, c, d, n);
+      mp_srcptr G = m & 1 ? P_ : M_, H1 = m & 1 ? M_ : P_;
+      mp_srcptr D = m & 2 ? Q_ : N_, H2 = m & 2 ? N_ : Q_;
+      (m & 4 ? mpn_sub_n : mpn_add_n) (X, G, D, n);
+      (m & 4 ? mpn_add_n : mpn_sub_n) (Y, G, D, n);
+      mp_limb_t hx = X[n - 1], hy = Y[n - 1];
+      mpn_rshift (X, X, n, 2);
+      X[n - 1] |= -(hx >> (GMP_NUMB_BITS - 1)) << (GMP_NUMB_BITS - 2);
+      mpn_rshift (Y, Y, n, 2);
+      Y[n - 1] |= -(hy >> (GMP_NUMB_BITS - 1)) << (GMP_NUMB_BITS - 2);
+      a[n] = b[n] = c[n] = d[n] = 0x5a5a5a5a5a5a5a5aULL;
+      gtc_tc5quad_n (a, b, c, d, n, m);
+      check (mpn_cmp (a, H1, n) == 0 && mpn_cmp (c, H2, n) == 0
+	     && mpn_cmp (b, X, n) == 0 && mpn_cmp (d, Y, n) == 0
+	     && a[n] == 0x5a5a5a5a5a5a5a5aULL && b[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && c[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && d[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_tc5quad_n", it);
+    }
+  /* gtc_tc5q4_n: q4 = ((x +- y) >> 2) - q0 - q8 (q8 of n8 limbs
+     sign-extended), on aarch64 gtc_tc5q4c2_n: q4 and c2 = (x -+ y) >> 2,
+     both shifts arithmetic; both modes, every n to 40 and n8 from 1 to n
+     (half the time n - 8 to n), c2 apart or over y, against GMP's sums
+     and shifts; the limb after each result left alone.  */
+  for (long it = 0; it < 80000; it++)
+    {
+      mp_size_t n = 1 + rnd () % 40;
+      mp_size_t n8 = rnd () & 1 ? n - (mp_size_t) (rnd () % (n < 9 ? n : 9))
+	: 1 + (mp_size_t) (rnd () % n);
+      int ysub = rnd () & 1, inpl = rnd () & 1;
+      mp_limb_t x[40], y[41], q0[40], q8[40], s4[40], d2[40], t[40];
+      mp_limb_t r[41], c[41];
+      fill (x, n);
+      fill (y, n);
+      fill (q0, n);
+      fill (q8, n);
+      (ysub ? mpn_sub_n : mpn_add_n) (s4, x, y, n);
+      (ysub ? mpn_add_n : mpn_sub_n) (d2, x, y, n);
+      mp_limb_t hs = s4[n - 1], hd = d2[n - 1];
+      mpn_rshift (s4, s4, n, 2);
+      s4[n - 1] |= -(hs >> (GMP_NUMB_BITS - 1)) << (GMP_NUMB_BITS - 2);
+      mpn_rshift (d2, d2, n, 2);
+      d2[n - 1] |= -(hd >> (GMP_NUMB_BITS - 1)) << (GMP_NUMB_BITS - 2);
+      mp_limb_t sg = -(q8[n8 - 1] >> (GMP_NUMB_BITS - 1));
+      for (mp_size_t i = n8; i < n; i++)
+	t[i] = sg;
+      mpn_copyi (t, q8, n8);
+      mpn_sub_n (s4, s4, q0, n);
+      mpn_sub_n (s4, s4, t, n);
+      r[n] = c[n] = y[n] = 0x5a5a5a5a5a5a5a5aULL;
+      for (mp_size_t i = n8; i < n; i++)
+	q8[i] = rnd ();		/* never read */
+#ifdef __aarch64__
+      mp_ptr cp = inpl ? y : c;
+      gtc_tc5q4c2_n (r, cp, x, y, q0, q8, n, n8 << 1 | ysub);
+      check (mpn_cmp (r, s4, n) == 0 && mpn_cmp (cp, d2, n) == 0
+	     && r[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && cp[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_tc5q4c2_n", it);
+#else
+      gtc_tc5q4_n (r, x, y, q0, q8, n, n8 << 1 | ysub);
+      check (mpn_cmp (r, s4, n) == 0 && r[n] == 0x5a5a5a5a5a5a5a5aULL,
+	     "gtc_tc5q4_n", it);
+      (void) inpl, (void) c, (void) d2;
+#endif
+    }
+  /* The q pass (GTC_TC5Q_N): t = (x +- y mod B^n) >> s, s = 2 or 3,
+     arithmetic and exact, q = (t +- c)/5, exact, a1 +- q and a2 +- (c -
+     q), c's sign as q's; all sixteen modes, every n to 40, against mpz
+     with q, t and c two's complement: the limbs, the net carries out of
+     a1 and a2 (the return value's halves) and the limb after each
+     result.  Outside the kernels' contracts and so left out: a2's carry
+     where c - q does not fit in n limbs (aarch64) and q = -B^n/2 where q
+     is added (gtc_tc5q8_n).  */
+  for (long it = 0; it < 80000; it++)
+    {
+      mp_size_t n = 1 + rnd () % 40;
+      unsigned mode = (unsigned) (rnd () % 16), ysub = mode & 1;
+      unsigned csub = mode >> 1 & 1, asub = mode >> 2 & 1;
+      unsigned sh = 2 + (mode >> 3 & 1);
+      mp_limb_t x[41], y[41], s5[41], t[41], q[41], f[41], c[41];
+      mp_limb_t a1[41], a2[41], hs, ret;
+      fill (x, n);
+      fill (y, n);
+      fill (q, n);
+#if !defined (__aarch64__) && !defined (GTC_ZEN)
+      q[0] |= q[n - 1] == (mp_limb_t) 1 << (GMP_NUMB_BITS - 1)
+	&& (n == 1 || mpn_zero_p (q, n - 1));
+#endif
+      fill (a1, n);
+      fill (a2, n);
+      (ysub ? mpn_sub_n : mpn_add_n) (s5, x, y, n);
+      x[0] -= s5[0] & ((1u << sh) - 1);
+      (ysub ? mpn_sub_n : mpn_add_n) (s5, x, y, n);
+      hs = s5[n - 1];
+      mpn_rshift (t, s5, n, sh);
+      t[n - 1] |= -(hs >> (GMP_NUMB_BITS - 1)) << (GMP_NUMB_BITS - sh);
+      mpn_mul_1 (f, q, n, 5);
+      if (csub)
+	mpn_sub_n (c, t, f, n);	/* t - c = 5 q */
+      else
+	mpn_sub_n (c, f, t, n);	/* t + c = 5 q */
+      /* E, G: a1 and a2 with what is added, over B^n and below */
+      tc_value (X, q, n);
+      tc_value (Y, c, n);
+      if (csub)
+	mpz_neg (Y, Y);
+      mpz_sub (Y, Y, X);
+      int fits = 1;
+#if defined (__aarch64__)
+      if (csub)
+	mpz_neg (P, Y);
+      else
+	mpz_set (P, Y);
+      mpz_fdiv_q_2exp (P, P, GMP_NUMB_BITS * n - 1);
+      fits = mpz_sgn (P) == 0 || mpz_cmp_si (P, -1) == 0;
+#endif
+      nat_value (E, a1, n);
+      nat_value (G, a2, n);
+      if (asub)
+	{
+	  mpz_sub (E, E, X);
+	  mpz_sub (G, G, Y);
+	}
+      else
+	{
+	  mpz_add (E, E, X);
+	  mpz_add (G, G, Y);
+	}
+      a1[n] = a2[n] = 0x5a5a5a5a5a5a5a5aULL;
+      ret = GTC_TC5Q_N (a1, a2, x, y, c, n, mode);
+      int ok = a1[n] == 0x5a5a5a5a5a5a5a5aULL
+	&& a2[n] == 0x5a5a5a5a5a5a5a5aULL;
+      nat_value (X, a1, n);
+      nat_value (Y, a2, n);
+      mpz_sub (X, E, X);
+      mpz_sub (Y, G, Y);
+      mpz_fdiv_q_2exp (E, E, GMP_NUMB_BITS * n);
+      mpz_fdiv_q_2exp (G, G, GMP_NUMB_BITS * n);
+      mpz_fdiv_r_2exp (X, X, GMP_NUMB_BITS * n);
+      mpz_fdiv_r_2exp (Y, Y, GMP_NUMB_BITS * n);
+      check (ok && mpz_sgn (X) == 0 && mpz_sgn (Y) == 0
+	     && mpz_get_si (E) == (int32_t) ret
+	     && (!fits || mpz_get_si (G) == (int32_t) (ret >> 32)),
+	     "the q pass", it);
+    }
+  /* gtc_tc5s_n: t = (x +- y mod B^n) >> 2 as above, q = (t + c)/5, (t -
+     c)/5 or (c - t)/5 (c made so that it is exact) into r1 and c - q into
+     r2, all six modes, every n to 40, against GMP; returns 0; the limb
+     after each result left alone.  */
+  for (long it = 0; it < 60000; it++)
+    {
+      mp_size_t n = 1 + rnd () % 40;
+      unsigned ysub = rnd () & 1, cm = (unsigned) (rnd () % 3);
+      mp_limb_t x[41], y[41], s5[41], t[41], q[41], f[41], c[41], e2[41];
+      mp_limb_t r1[41], r2[41], hs, ret;
+      fill (x, n);
+      fill (y, n);
+      fill (q, n);
+      (ysub ? mpn_sub_n : mpn_add_n) (s5, x, y, n);
+      x[0] -= s5[0] & 3;
+      (ysub ? mpn_sub_n : mpn_add_n) (s5, x, y, n);
+      hs = s5[n - 1];
+      mpn_rshift (t, s5, n, 2);
+      t[n - 1] |= -(hs >> (GMP_NUMB_BITS - 1)) << (GMP_NUMB_BITS - 2);
+      mpn_mul_1 (f, q, n, 5);
+      if (cm == 0)
+	mpn_sub_n (c, f, t, n);	/* t + c = 5 q */
+      else if (cm == 1)
+	mpn_sub_n (c, t, f, n);	/* t - c = 5 q */
+      else
+	mpn_add_n (c, f, t, n);	/* c - t = 5 q */
+      mpn_sub_n (e2, c, q, n);
+      r1[n] = r2[n] = 0x5a5a5a5a5a5a5a5aULL;
+      ret = gtc_tc5s_n (r1, r2, x, y, c, n, ysub | cm << 1);
+      check (ret == 0 && mpn_cmp (r1, q, n) == 0 && mpn_cmp (r2, e2, n) == 0
+	     && r1[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && r2[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_tc5s_n", it);
+    }
+#endif
+
+#ifdef GTC_ACC_ASM
+  /* gtc_tc5uys_n: X = A -+ z into rp (A = 2 (q0 + 4 (4 q8 - q4)), q8 of
+     n8 limbs sign-extended), Y = u -+ X over u and S = Y +- v -+ z over
+     z, all eight modes, every n to 40 and n8 from 1 to n (often n - 8 to
+     n), against GMP's shifts and sums; the limb after each result left
+     alone.  */
+  for (long it = 0; it < 80000; it++)
+    {
+      mp_size_t n = 1 + rnd () % 40;
+      mp_size_t n8 = rnd () & 1 ? n - (mp_size_t) (rnd () % (n < 9 ? n : 9))
+	: 1 + (mp_size_t) (rnd () % n);
+      unsigned m = (unsigned) (rnd () % 8);
+      int zadd = m & 1, yadd = m >> 1 & 1, vsub = m >> 2 & 1;
+      mp_limb_t q0[40], q4[40], q8[40], z[41], u[41], v[40], r[41];
+      mp_limb_t t[40], x[40], y[40], sr[40];
+      fill (q0, n);
+      fill (q4, n);
+      fill (q8, n);
+      fill (z, n);
+      fill (u, n);
+      fill (v, n);
+      mp_limb_t sg = -(q8[n8 - 1] >> (GMP_NUMB_BITS - 1));
+      for (mp_size_t i = n8; i < n; i++)
+	t[i] = sg;
+      mpn_copyi (t, q8, n8);
+      mpn_lshift (t, t, n, 2);
+      mpn_sub_n (t, t, q4, n);
+      mpn_lshift (t, t, n, 2);
+      mpn_add_n (t, t, q0, n);
+      mpn_lshift (t, t, n, 1);
+      (zadd ? mpn_add_n : mpn_sub_n) (x, t, z, n);
+      if (yadd)
+	mpn_add_n (y, u, x, n);
+      else
+	mpn_sub_n (y, u, x, n);
+      (vsub ? mpn_sub_n : mpn_add_n) (sr, y, v, n);
+      (zadd == yadd ? mpn_sub_n : mpn_add_n) (sr, sr, z, n);
+      r[n] = z[n] = u[n] = 0x5a5a5a5a5a5a5a5aULL;
+      for (mp_size_t i = n8; i < n; i++)
+	q8[i] = rnd ();		/* never read */
+      gtc_tc5uys_n (r, z, q0, q4, q8, n, n8 << 3 | m, u, v);
+      check (mpn_cmp (r, x, n) == 0 && mpn_cmp (u, y, n) == 0
+	     && mpn_cmp (z, sr, n) == 0 && r[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && z[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && u[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_tc5uys_n", it);
+    }
+#endif
+
+#ifdef GTC_ASM_X86
+  /* gtc_bfly_n: x + y and x - y modulo B^n in one pass, every n to 40,
+     apart, over x and y, or over y and x, against GMP; returns 0; the limb
+     after each result left alone.  */
+  for (long it = 0; it < 40000; it++)
+    {
+      mp_size_t n = rnd () % 41;
+      int where = (int) (rnd () % 3);
+      mp_limb_t x[41], y[41], s2[41], d[41], es[41], ed[41], ret;
+      fill (x, n);
+      fill (y, n);
+      if (n > 0)
+	{
+	  mpn_add_n (es, x, y, n);
+	  mpn_sub_n (ed, x, y, n);
+	}
+      mp_ptr sp = where == 1 ? x : where == 2 ? y : s2;
+      mp_ptr dp = where == 1 ? y : where == 2 ? x : d;
+      sp[n] = dp[n] = 0x5a5a5a5a5a5a5a5aULL;
+      ret = gtc_bfly_n (sp, dp, x, y, n);
+      check (ret == 0
+	     && (n == 0 || (mpn_cmp (sp, es, n) == 0
+			    && mpn_cmp (dp, ed, n) == 0))
+	     && sp[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && dp[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_bfly_n", it);
+    }
+  /* gtc_bflyq_n: the quarter butterfly in place, every length to 40,
+     the results apart, on x and y, on y and x, or the difference alone
+     on y, with extreme limbs, against gtc_rsh2add_n and gtc_rsh2sub_n;
+     the limb after each result left alone.  */
+  for (long it = 0; it < 40000; it++)
+    {
+      mp_size_t n = 1 + rnd () % 40;
+      int where = (int) (rnd () % 4);
+      mp_limb_t x[41], y[41], s[41], d[41], es[41], ed[41];
+      for (mp_size_t i = 0; i < n; i++)
+	{
+	  x[i] = limb ();
+	  y[i] = limb ();
+	}
+      gtc_rsh2add_n (es, x, y, n);
+      gtc_rsh2sub_n (ed, x, y, n);
+      x[n] = y[n] = s[n] = d[n] = 0x5a5a5a5a5a5a5a5aULL;
+      mp_ptr sp = where == 1 ? x : where == 2 ? y : s;
+      mp_ptr dp = where == 1 || where == 3 ? y : where == 2 ? x : d;
+      gtc_bflyq_n (sp, dp, x, y, n);
+      check (mpn_cmp (sp, es, n) == 0 && mpn_cmp (dp, ed, n) == 0
+	     && sp[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && dp[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_bflyq_n", it);
+    }
+  /* gtc_tc5uy_n: -U = A -+ z (A = 2 (q0 + 4 (4 q8 - q4)), q8 of n8 limbs
+     sign-extended) and Y = u -+ (A -+ z) over u, all four modes, every n
+     to 40 and n8 from 1 to n (half the time n - 8 to n), -U apart or
+     over z, against GMP's shifts and sums; the limbs after the results
+     left alone.  */
+  for (long it = 0; it < 160000; it++)
+    {
+      mp_size_t n = 1 + rnd () % 40;
+      mp_size_t n8 = rnd () & 1 ? n - (mp_size_t) (rnd () % (n < 9 ? n : 9))
+	: 1 + (mp_size_t) (rnd () % n);
+      int zadd = rnd () & 1, inpl = rnd () & 1;
+      mp_limb_t q0[40], q4[40], q8[40], z[41], t[40], x[40], r[41];
+      fill (q0, n);
+      fill (q4, n);
+      fill (q8, n);
+      fill (z, n);
+      mp_limb_t sg = -(q8[n8 - 1] >> (GMP_NUMB_BITS - 1));
+      for (mp_size_t i = n8; i < n; i++)
+	t[i] = sg;
+      mpn_copyi (t, q8, n8);
+      mpn_lshift (t, t, n, 2);
+      mpn_sub_n (t, t, q4, n);
+      mpn_lshift (t, t, n, 2);
+      mpn_add_n (t, t, q0, n);
+      mpn_lshift (t, t, n, 1);
+      (zadd ? mpn_add_n : mpn_sub_n) (x, t, z, n);
+      r[n] = z[n] = 0x5a5a5a5a5a5a5a5aULL;
+      for (mp_size_t i = n8; i < n; i++)
+	q8[i] = rnd ();		/* never read */
+      mp_ptr rp = inpl ? z : r;
+      int yadd = rnd () & 1;
+      mp_limb_t u[41], yr[40];
+      fill (u, n);
+      (yadd ? mpn_add_n : mpn_sub_n) (yr, u, x, n);
+      u[n] = 0x5a5a5a5a5a5a5a5aULL;
+      gtc_tc5uy_n (rp, z, q0, q4, q8, n, n8 << 2 | yadd << 1 | zadd, u);
+      check (mpn_cmp (rp, x, n) == 0 && mpn_cmp (u, yr, n) == 0
+	     && rp[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && u[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_tc5uy_n", it);
+    }
+  /* gtc_tc5a_n: A = 2 (q0 + 4 (4 q8 - q4)) modulo B^n, q8 of n8 limbs
+     sign-extended, every n to 40 and n8 from 1 to n (often n - 8 to n),
+     against GMP's shifts and sums; the limb after A left alone.  */
+  for (long it = 0; it < 40000; it++)
+    {
+      mp_size_t n = 1 + rnd () % 40;
+      mp_size_t n8 = rnd () & 1 ? n - (mp_size_t) (rnd () % (n < 9 ? n : 9))
+	: 1 + (mp_size_t) (rnd () % n);
+      mp_limb_t q0[40], q4[40], q8[40], t[40], u[40], ref[40], r[41];
+      fill (q0, n);
+      fill (q4, n);
+      fill (q8, n);
+      mp_limb_t sg = -(q8[n8 - 1] >> (GMP_NUMB_BITS - 1));
+      for (mp_size_t i = n8; i < n; i++)
+	t[i] = sg;
+      mpn_copyi (t, q8, n8);
+      mpn_lshift (t, t, n, 2);
+      mpn_sub_n (t, t, q4, n);
+      mpn_lshift (u, t, n, 2);
+      mpn_add_n (u, u, q0, n);
+      mpn_lshift (ref, u, n, 1);
+      r[n] = 0x5a5a5a5a5a5a5a5aULL;
+      for (mp_size_t i = n8; i < n; i++)
+	q8[i] = rnd ();		/* never read */
+      gtc_tc5a_n (r, q0, q4, q8, n, n8);
+      check (mpn_cmp (r, ref, n) == 0 && r[n] == 0x5a5a5a5a5a5a5a5aULL,
+	     "gtc_tc5a_n", it);
+    }
+#endif
+
 #ifdef GTC_ASM_X86
   /* gtc_aorslsh_n: x +- 2^s y and 2^s y - x, every s from 1 to 63, every
      length to 40, in place or not, against mpn_addmul_1 and mpn_submul_1
      by 2^s, the limb above or the borrow included, and for 2^s y - x
      against the shift and mpn_sub_n, the bits shifted out minus the
-     borrow.  */
+     borrow.  gtc_aors2c_n: d = x +- y and z = d +- z, all four sign
+     modes, d apart or over x or y, against GMP's sums, the carries as the
+     complement additions give them (1 - borrow for a subtraction).  */
   for (long it = 0; it < 40000; it++)
     {
       mp_size_t n = rnd () % 41;
@@ -883,6 +1158,33 @@ main (void)
       c = gtc_aorslsh_n (r, inpl ? r : x, y, n, s, sub);
       check ((n == 0 || mpn_cmp (r, ref, n) == 0) && c == cr
 	     && r[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_aorslsh_n", it);
+    }
+  for (long it = 0; it < 40000; it++)
+    {
+      mp_size_t n = rnd () % 41;
+      unsigned signs = (unsigned) (rnd () % 4), c, cr;
+      mp_limb_t x[41], y[41], z[42], d[42], rd[41], rz[41];
+      fill (x, 41);
+      fill (y, 41);
+      fill (z, 41);
+      mpn_copyi (rz, z, n);
+      cr = signs;			/* the carry-ins where n = 0 */
+      if (n > 0)
+	{
+	  unsigned c1 = signs & 1 ? 1 - (unsigned) mpn_sub_n (rd, x, y, n)
+	    : (unsigned) mpn_add_n (rd, x, y, n);
+	  unsigned c2 = signs & 2 ? 1 - (unsigned) mpn_sub_n (rz, rd, rz, n)
+	    : (unsigned) mpn_add_n (rz, rd, rz, n);
+	  cr = c1 + 2 * c2;
+	}
+      /* d apart, over x or over y */
+      int where = (int) (rnd () % 3);
+      mp_ptr dp = where == 1 ? x : where == 2 ? y : d;
+      dp[n] = z[n] = 0x5a5a5a5a5a5a5a5aULL;
+      c = (unsigned) gtc_aors2c_n (dp, z, x, y, n, signs);
+      check ((n == 0 || (mpn_cmp (dp, rd, n) == 0 && mpn_cmp (z, rz, n) == 0))
+	     && c == cr && dp[n] == 0x5a5a5a5a5a5a5a5aULL
+	     && z[n] == 0x5a5a5a5a5a5a5a5aULL, "gtc_aors2c_n", it);
     }
 #endif
 

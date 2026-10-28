@@ -91,6 +91,12 @@ and six of their own:
     may equal xp.  (The x86-64 kernel's contract; the Toom-4 style
     reduction's q5.)
 
+The Gaussian Toom-5's interpolation has five more (gtc.c,
+gtc_55_interp3): gtc_tc5q_n, gtc_tc5s_n and gtc_tc5quad_n with the
+contracts of the x86-64 kernels (but see gtc_tc5q_n's carry out of a2),
+and gtc_tc5q4c2_n and gtc_tc5uys_n, which do more in their pass than the
+x86-64 kernels do; each generator says what it computes and how.
+
 x86-64 runs two additions along two carry chains at once, CF and OF.
 aarch64 has one carry flag.  gtc_aors2_n and gtc_aors2x_n therefore are
 two passes in one call, over a leaner loop than GMP's add_n and sub_n
@@ -141,6 +147,37 @@ def dispatch(labels, reg="w5"):
     emit(f"{one}:")
     emit(f"\ttbnz\t{reg}, #1, {labels[(1, 1)]}")
     emit(f"\tb\t{labels[(1, 0)]}")
+
+
+_trees = {}
+
+
+def mode_dispatch(reg, table):
+    """The entry of a kernel's mode copies on reg's low bits (already
+    masked): a tree of tbnz, the highest bit first, put in by mode_table
+    once the copies' labels are known."""
+    _trees[table] = (len(out), reg)
+    out.append(None)
+
+
+def mode_table(table, entries):
+    """mode_dispatch's tree for table, entries[m] the copy of mode m."""
+    at, reg = _trees.pop(table)
+    nb = len(entries).bit_length() - 1
+    assert len(entries) == 1 << nb
+    tree = []
+
+    def rec(bit, base):
+        if bit < 0:
+            tree.append(f"\tb\t{entries[base]}")
+            return
+        hi = lab("td")
+        tree.append(f"\ttbnz\t{reg}, #{bit}, {hi}")
+        rec(bit - 1, base)
+        tree.append(f"{hi}:")
+        rec(bit - 1, base | 1 << bit)
+    rec(nb - 1, 0)
+    out[at:at + 1] = tree
 
 
 def set_carry(sub):
@@ -474,15 +511,15 @@ def rsh1(name, sub, sh=1):
     epilogue(name)
 
 
-def rsh1add3(name="gtc_rsh1add3_n", sh=1):
+def rsh1add3():
     """gtc_rsh1add3_n: the two chains of the three-operand sum parked by
     blocks as in gtc_add3_n (a +- b along the flag, then + c), the halving
     as in rsh1: results two limbs behind the sums (x19, x20 between
     blocks), three sums first when two of ap, bp, cp are 8 mod 16, the
     rest in steps of 4, 2, 1; the last sum shifted arithmetically.  comp
     = 1 makes the first chain b - a (sbcs).  0.61-0.95 the cycles of
-    GMP's add_n (sub_n) and rsh1add_n.  With sh > 1 the sum shifted by sh bits (gtc_rsh2add3_n,
-    gtc_rsh3add3_n)."""
+    GMP's add_n (sub_n) and rsh1add_n."""
+    name = "gtc_rsh1add3_n"
     prologue(name)
     S = ["x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15"]
     rot = ["x16", "x17"]
@@ -530,7 +567,7 @@ def rsh1add3(name="gtc_rsh1add3_n", sh=1):
         misaligned_head(("x1", "x2", "x3"), "x9", "x10", h)
         emit(f"\tcbz\tx4, {h}")
         single("x8")
-        emit(f"\textr\tx16, {p1}, {p0}, #{sh}")
+        emit(f"\textr\tx16, {p1}, {p0}, #1")
         emit("\tstr\tx16, [x0], #8")
         emit(f"\tmov\t{p0}, {p1}")
         emit(f"\tmov\t{p1}, x8")
@@ -557,7 +594,7 @@ def rsh1add3(name="gtc_rsh1add3_n", sh=1):
                 for j in range(k):
                     op2(S[s0 + i + j], rot[j])
                 for j in range(k):
-                    emit(f"\textr\t{rot[j]}, {allr[i + j + 1]}, {allr[i + j]}, #{sh}")
+                    emit(f"\textr\t{rot[j]}, {allr[i + j + 1]}, {allr[i + j]}, #1")
                 g.acc("st", rot[:k], "x0", i)
             emit(f"\tmov\t{p0}, {allr[nl]}")
             emit(f"\tmov\t{p1}, {allr[nl + 1]}")
@@ -591,12 +628,12 @@ def rsh1add3(name="gtc_rsh1add3_n", sh=1):
             sec2(Grp(1 << b), 1 << b, slots[b])
             emit(f"{skip}:")
         # the last two results; the last sum shifted arithmetically
-        emit(f"\textr\tx16, {p1}, {p0}, #{sh}")
-        emit(f"\tasr\tx17, {p1}, #{sh}")
+        emit(f"\textr\tx16, {p1}, {p0}, #1")
+        emit(f"\tasr\tx17, {p1}, #1")
         emit("\tstp\tx16, x17, [x0]")
         emit(f"\tb\t{end}")
         emit(f"{one}:")
-        emit(f"\tasr\tx16, {p0}, #{sh}")
+        emit(f"\tasr\tx16, {p0}, #1")
         emit("\tstr\tx16, [x0]")
         emit(f"\tb\t{end}")
     emit(f"{end}:")
@@ -742,12 +779,14 @@ def kara_recomp2():
 
 
 
-def lsh_chain(g, U, L, A, nl, src, prev, sh, op, t0, t1):
+def lsh_chain(g, U, L, A, nl, src, prev, sh, op, t0, t1, rev=False):
     """U[i] op= the limbs of src shifted left by 64 - sh bits (extr from
-    the limb below, prev before the first), along the flag.  Blocks of 4
-    and 8 load their pairs into L and A in turn, the last limb straight
-    into prev, so that no mov carries the limb below; smaller ones load
-    into L and copy the top limb to prev."""
+    the limb below, prev before the first), along the flag (rev: U[i] =
+    those op U[i]).  Blocks of 4 and 8 load their pairs into L and A in
+    turn, the last limb straight into prev, so that no mov carries the
+    limb below; smaller ones load into L and copy the top limb to prev."""
+    def opu(u, t):
+        emit(f"\t{op}\t{u}, {t}, {u}" if rev else f"\t{op}\t{u}, {u}, {t}")
     if nl >= 4:
         P = [tuple(L), tuple(A)]
         hp = prev
@@ -758,8 +797,8 @@ def lsh_chain(g, U, L, A, nl, src, prev, sh, op, t0, t1):
             g.acc("ld", [lo, hi], src, 2 * j)
             emit(f"\textr\t{t0}, {lo}, {hp}, #{sh}")
             emit(f"\textr\t{t1}, {hi}, {lo}, #{sh}")
-            emit(f"\t{op}\t{U[2 * j]}, {U[2 * j]}, {t0}")
-            emit(f"\t{op}\t{U[2 * j + 1]}, {U[2 * j + 1]}, {t1}")
+            opu(U[2 * j], t0)
+            opu(U[2 * j + 1], t1)
             hp = hi
         return
     for i in range(0, nl, 2):
@@ -768,25 +807,19 @@ def lsh_chain(g, U, L, A, nl, src, prev, sh, op, t0, t1):
         emit(f"\textr\t{t0}, {L[0]}, {prev}, #{sh}")
         if k == 2:
             emit(f"\textr\t{t1}, {L[1]}, {L[0]}, #{sh}")
-        emit(f"\t{op}\t{U[i]}, {U[i]}, {t0}")
+        opu(U[i], t0)
         if k == 2:
-            emit(f"\t{op}\t{U[i + 1]}, {U[i + 1]}, {t1}")
+            opu(U[i + 1], t1)
         emit(f"\tmov\t{prev}, {L[k - 1]}")
 
 
-def dbm1_step(u, h, p0, p1, bd, nomov=True):
-    """GMP's mpn_bdiv_dbm1c step on the limb u, the quotient limb into u:
-    by subs itself, or (nomov false) into h and copied, as the div5_add
-    kernels do, where it was faster at small sizes."""
+def dbm1_step(u, h, p0, p1, bd):
+    """GMP's mpn_bdiv_dbm1c step on the limb u, the quotient limb into u
+    by subs itself."""
     emit(f"\tmul\t{p0}, {u}, {bd}")
     emit(f"\tumulh\t{p1}, {u}, {bd}")
-    if nomov:
-        emit(f"\tsubs\t{u}, {h}, {p0}")
-        emit(f"\tsbc\t{h}, {u}, {p1}")
-    else:
-        emit(f"\tsubs\t{h}, {h}, {p0}")
-        emit(f"\tmov\t{u}, {h}")
-        emit(f"\tsbc\t{h}, {h}, {p1}")
+    emit(f"\tsubs\t{u}, {h}, {p0}")
+    emit(f"\tsbc\t{h}, {u}, {p1}")
 
 
 def div15_lsh():
@@ -914,78 +947,6 @@ def div5_lsh():
         emit("\t.p2align\t4")
         emit(f"{grp}:")
         block(8, opy)
-        emit("\tsub\tx5, x5, #1")
-        emit(f"\tcbnz\tx5, {grp}")
-        emit(f"{done}:")
-        emit(f"\tb\t{end}")
-    emit(f"{end}:")
-    emit(f"\tmov\tx0, {h}")
-    emit("\tldp\tx21, x22, [sp, #16]")
-    emit("\tldp\tx23, x24, [sp, #32]")
-    emit("\tldp\tx25, x26, [sp, #48]")
-    emit("\tldp\tx19, x20, [sp], #64")
-    epilogue(name)
-
-
-def div5_add():
-    """gtc_div5_add_n: {rp, n} = (x + y) / 5 modulo B^n, exact; mode 1:
-    (x - y) / 5, mode 2: (y - x) / 5 (the contract of the x86-64 kernel).
-    div5_lsh without the shift of y: per block of 8 limbs (the n mod 8
-    first, by n's bits in blocks of 1, 2 and 4) the sum along the flag,
-    parked; then GMP's mpn_bdiv_dbm1c step with (B-1)/5."""
-    name = "gtc_div5_add_n"
-    prologue(name)
-    emit("\tstp\tx19, x20, [sp, #-64]!")
-    emit("\tstp\tx21, x22, [sp, #16]")
-    emit("\tstp\tx23, x24, [sp, #32]")
-    emit("\tstp\tx25, x26, [sp, #48]")
-    U = ["x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15"]
-    L = ["x16", "x17"]
-    bd, h, p0, p1 = (f"x{r}" for r in range(22, 26))
-    labels = {v: lab(f"da{v}_") for v in (0, 1, 2)}
-    end = lab("daend")
-    emit(f"\tmov\t{bd}, #0x3333333333333333\t// (B-1)/5")
-    emit(f"\tmov\t{h}, xzr")
-    emit("\tcmp\tw4, #1")
-    emit(f"\tb.eq\t{labels[1]}")
-    emit(f"\tb.hi\t{labels[2]}")
-    emit(f"\tb\t{labels[0]}")
-
-    def block(nl, mode):
-        g = Grp(nl)
-        for i in range(0, nl, 2):
-            g.acc("ld", U[i:i + min(2, nl - i)], "x1", i)
-        emit("\tcmp\tx6, #1")
-        for i in range(0, nl, 2):
-            k = min(2, nl - i)
-            g.acc("ld", L[:k], "x2", i)
-            for j in range(k):
-                if mode == 0:
-                    emit(f"\tadcs\t{U[i + j]}, {U[i + j]}, {L[j]}")
-                elif mode == 1:
-                    emit(f"\tsbcs\t{U[i + j]}, {U[i + j]}, {L[j]}")
-                else:
-                    emit(f"\tsbcs\t{U[i + j]}, {L[j]}, {U[i + j]}")
-        emit("\tcset\tx6, cs")
-        for i in range(nl):
-            dbm1_step(U[i], h, p0, p1, bd, False)
-        for i in range(0, nl, 2):
-            g.acc("st", U[i:i + min(2, nl - i)], "x0", i)
-
-    for mode, l in labels.items():
-        emit(f"{l}:")
-        emit(f"\tmov\tx6, #{1 if mode else 0}\t\t// C = 1 where the chain subtracts")
-        for b in (0, 1, 2):
-            skip = lab("dar")
-            emit(f"\ttbz\tx3, #{b}, {skip}")
-            block(1 << b, mode)
-            emit(f"{skip}:")
-        grp, done = lab("dag"), lab("dad")
-        emit("\tlsr\tx5, x3, #3")
-        emit(f"\tcbz\tx5, {done}")
-        emit("\t.p2align\t4")
-        emit(f"{grp}:")
-        block(8, mode)
         emit("\tsub\tx5, x5, #1")
         emit(f"\tcbnz\tx5, {grp}")
         emit(f"{done}:")
@@ -1137,112 +1098,690 @@ def t5r():
     epilogue(name)
 
 
-def div5_add_fused(kind):
-    """gtc_div5_add_sub_n: gtc_div5_add_n's {rp, n} = q (mode & 3), and
-    {sp, n} = z - q modulo B^n in the same pass, z = y with mode & 4, else
-    x (the contract of the x86-64 kernel): per block a third chain of sbcs
-    over z and the quotient limbs still in their registers, parked in x20,
-    stored through x19 = sp.  rp and sp overlap neither xp nor yp nor each
-    other."""
-    # kind "acc": gtc_div5_add_acc_n, {ap, n} += q (mode & 4: -= q) along
-    # the third chain through x19 = ap, returning its carry (or borrow);
-    # rp may equal xp or yp there, ap overlaps none of them
-    name = "gtc_div5_add_sub_n" if kind == "sub" else "gtc_div5_add_acc_n"
+def tc5uys():
+    """gtc_tc5uys_n (mp_ptr rp, mp_ptr zp, mp_srcptr q0, mp_srcptr q4,
+    mp_srcptr q8, mp_size_t n, mp_size_t n8m, mp_ptr up, mp_srcptr vp):
+    in one pass, all modulo B^n, q8 of n8 = n8m >> 3 limbs (1 <= n8 <= n)
+    sign-extended: {rp, n} = X = 2 (q0 + 4 (4 q8 - q4)) - z, or + z with
+    n8m & 1; {up, n} = Y = u - X, or u + X with n8m & 2; {zp, n} = Y + v,
+    or Y - v with n8m & 4, minus z where n8m's bits 0 and 1 are equal,
+    else plus z.  Per block of 8 limbs X as a sum of shifted terms rather
+    than by Horner's rule: z loaded, then the chains of 2 q0 (from which z
+    is subtracted, or to which it is added), - 8 q4 and + 32 q8 along the
+    flag one after the other, the shifted limbs by extr with no mov for
+    the limb below (lsh_chain); then Y's chain over X's registers (u
+    loaded, Y stored over it) and zp's two (v, then z again), each parked
+    between blocks (cset, cmp; the last on the stack), q8's sign in its
+    pointer register over its extension.  One copy per mode, entered
+    through a tree on its bits."""
+    name = "gtc_tc5uys_n"
+    prologue(name)
+    emit("\tstp\tx19, x20, [sp, #-112]!")
+    for i, (a, b) in enumerate((("x21", "x22"), ("x23", "x24"), ("x25", "x26"),
+                                ("x27", "x28"), ("x29", "x30")), 1):
+        emit(f"\tstp\t{a}, {b}, [sp, #{16 * i}]")
+    TAILS, PK6 = 96, 104	# stack: n - n8, chain 6's park
+    U = ["x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15"]
+    L = ["x16", "x17"]
+    RP, ZP, Q0, Q4, Q8, UP, VP = "x0", "x1", "x2", "x3", "x4", "x7", "x29"
+    p0, p4, p8, t0, t1, k3 = "x19", "x20", "x21", "x22", "x23", "x24"
+    cnt, k1, k2, k4, k5 = "x5", "x6", "x30", "x27", "x28"
+    emit(f"\tldr\t{VP}, [sp, #112]\t// the ninth argument")
+    for r in (p0, p4, p8):
+        emit(f"\tmov\t{r}, xzr")
+    emit("\tlsr\tx17, x6, #3\t\t// n8")
+    emit("\tsub\tx16, x5, x17")
+    emit(f"\tstr\tx16, [sp, #{TAILS}]\t// n - n8")
+    emit(f"\tmov\t{cnt}, x17")
+    table, end = lab("uyt"), lab("uye")
+    emit("\tand\tw6, w6, #7")
+    mode_dispatch("w6", table)
+
+    def chain(g, nl, src, prev, sh, park, op, rev=False, tl=False):
+        """U op= src << (64 - sh); tl: src q8's sign."""
+        emit(f"\tcmp\t{park}, #1")
+        if not tl:
+            lsh_chain(g, U, L, ("x25", "x26"), nl, src, prev, sh, op, t0, t1,
+                      rev)
+            emit(f"\tcset\t{park}, cs")
+            return
+        for i in range(0, nl, 2):
+            k = min(2, nl - i)
+            ts = [t0, t1][:k]
+            emit(f"\textr\t{t0}, {Q8}, {prev}, #{sh}")
+            if k == 2:
+                emit(f"\tmov\t{t1}, {Q8}")
+            emit(f"\tmov\t{prev}, {Q8}")
+            for j in range(k):
+                u = U[i + j]
+                if rev:
+                    emit(f"\t{op}\t{u}, {ts[j]}, {u}")
+                else:
+                    emit(f"\t{op}\t{u}, {u}, {ts[j]}")
+        emit(f"\tcset\t{park}, cs")
+
+    def plain(g, nl, src, park, op, rev=False, mem=False):
+        """U op= src (rev: U = src op U) along the flag; mem: the park on
+        the stack."""
+        if mem:
+            emit(f"\tldr\t{t0}, [sp, #{PK6}]")
+            emit(f"\tcmp\t{t0}, #1")
+        else:
+            emit(f"\tcmp\t{park}, #1")
+        for i in range(0, nl, 2):
+            k = min(2, nl - i)
+            g.acc("ld", L[:k], src, i)
+            for j in range(k):
+                u = U[i + j]
+                if rev:
+                    emit(f"\t{op}\t{u}, {L[j]}, {u}")
+                else:
+                    emit(f"\t{op}\t{u}, {u}, {L[j]}")
+        if mem:
+            emit(f"\tcset\t{t0}, cs")
+            emit(f"\tstr\t{t0}, [sp, #{PK6}]")
+        else:
+            emit(f"\tcset\t{park}, cs")
+
+    def block(nl, m, tl):
+        zadd, yadd, vsub = m & 1, m >> 1 & 1, m >> 2 & 1
+        zsub = int(zadd == yadd)
+        g = Grp(nl)
+        for i in range(0, nl, 2):
+            g.acc("ld", U[i:i + min(2, nl - i)], ZP, i)
+        if zadd:
+            chain(g, nl, Q0, p0, 63, k1, "adcs")
+        else:
+            chain(g, nl, Q0, p0, 63, k1, "sbcs", rev=True)
+        chain(g, nl, Q4, p4, 61, k2, "sbcs")
+        chain(g, nl, Q8, p8, 59, k3, "adcs", tl=tl)
+        for i in range(0, nl, 2):
+            g.acc("st", U[i:i + min(2, nl - i)], RP, i)
+        if yadd:
+            plain(g, nl, UP, k4, "adcs")
+        else:
+            plain(g, nl, UP, k4, "sbcs", rev=True)
+        for i in range(0, nl, 2):
+            g.acc("st", U[i:i + min(2, nl - i)], UP, i)
+        plain(g, nl, VP, k5, "sbcs" if vsub else "adcs")
+        plain(g, nl, ZP, None, "sbcs" if zsub else "adcs", mem=True)
+        for i in range(0, nl, 2):
+            g.acc("st", U[i:i + min(2, nl - i)], ZP, i)
+
+    entries = []
+    for m in range(8):
+        zadd, yadd, vsub = m & 1, m >> 1 & 1, m >> 2 & 1
+        l = lab("uym")
+        entries.append(l)
+        emit(f"{l}:")
+        # C as the chains start: no carry (adcs), no borrow (sbcs)
+        emit(f"\tmov\t{k1}, #{0 if zadd else 1}")
+        emit(f"\tmov\t{k2}, #1")
+        emit(f"\tmov\t{k3}, xzr")
+        emit(f"\tmov\t{k4}, #{0 if yadd else 1}")
+        emit(f"\tmov\t{k5}, #{vsub}")
+        emit(f"\tmov\t{t0}, #{int(zadd == yadd)}")
+        emit(f"\tstr\t{t0}, [sp, #{PK6}]")
+        for tl in (False, True):
+            if tl:
+                emit(f"\tldr\t{cnt}, [sp, #{TAILS}]")
+                emit(f"\tldr\t{Q8}, [{Q8}, #-8]")
+                emit(f"\tasr\t{Q8}, {Q8}, #63\t// q8's sign limb")
+            for b in (0, 1, 2):
+                skip = lab("uyr")
+                emit(f"\ttbz\t{cnt}, #{b}, {skip}")
+                block(1 << b, m, tl)
+                emit(f"{skip}:")
+            grp, done = lab("uyg"), lab("uyd")
+            emit(f"\tlsr\t{cnt}, {cnt}, #3")
+            emit(f"\tcbz\t{cnt}, {done}")
+            emit("\t.p2align\t4")
+            emit(f"{grp}:")
+            block(8, m, tl)
+            emit(f"\tsub\t{cnt}, {cnt}, #1")
+            emit(f"\tcbnz\t{cnt}, {grp}")
+            emit(f"{done}:")
+        emit(f"\tb\t{end}")
+    emit(f"{end}:")
+    for i, (a, b) in enumerate((("x21", "x22"), ("x23", "x24"), ("x25", "x26"),
+                                ("x27", "x28"), ("x29", "x30")), 1):
+        emit(f"\tldp\t{a}, {b}, [sp, #{16 * i}]")
+    emit("\tldp\tx19, x20, [sp], #112")
+    emit("\tret")
+    mode_table(table, entries)
+    emit(f"\t.size\t{name}, .-{name}")
+
+
+def tc5s():
+    """gtc_tc5s_n (mp_ptr r1, mp_ptr r2, mp_srcptr xp, mp_srcptr yp,
+    mp_srcptr cp, mp_size_t n, unsigned mode): in one pass over n >= 1
+    limbs, t = (x + y mod B^n) >> 2, arithmetic and exact, y subtracted
+    with mode & 1; {r1, n} = q = (t + c)/5 modulo B^n, exact, mode >> 1 =
+    1: (t - c)/5, 2: (c - t)/5; {r2, n} = c - q modulo B^n.  Returns 0.
+    r1 and r2 overlap neither each other nor the operands.  Per block of 8
+    limbs (the n - 1 mod 8 first, in blocks of 1, 2 and 4), the sums into
+    S[1..m], t by extr into S[0..m-1], the numerator, q by dbm1_step
+    (stored, kept in S), then c - q, each chain along the flag and parked
+    between blocks.  One copy per mode, entered through a tree on its bits."""
+    name = "gtc_tc5s_n"
+    prologue(name)
+    emit("\tstp\tx19, x20, [sp, #-48]!")
+    emit("\tstp\tx21, x22, [sp, #16]")
+    emit("\tstp\tx23, x24, [sp, #32]")
+    R1, R2, X, Y, C, N = "x0", "x1", "x2", "x3", "x4", "x5"
+    S = ["x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x19"]
+    L = ["x16", "x17"]
+    bd, h, p0, p1 = "x20", "x21", "x22", "x23"
+    K = {1: "x6", 2: "x7", 3: "x24"}
+    emit(f"\tmov\t{bd}, #0x3333333333333333\t// (B-1)/5")
+    table, end = lab("q6t"), lab("q6e")
+    emit("\tand\tw6, w6, #7")
+    mode_dispatch("w6", table)
+    entries = []
+    op = lambda sub: "sbcs" if sub else "adcs"
+    for mode in range(8):
+        ysub, cm = mode & 1, mode >> 1
+        if cm == 3:
+            entries.append(entries[mode & 1])	# unused
+            continue
+        l = lab("q6m")
+        entries.append(l)
+        emit(f"{l}:")
+        emit(f"\tldr\t{S[0]}, [{X}], #8")
+        emit(f"\tldr\t{L[0]}, [{Y}], #8")
+        emit(f"\t{'subs' if ysub else 'adds'}\t{S[0]}, {S[0]}, {L[0]}\t// s0")
+        emit(f"\tcset\t{K[1]}, cs")
+        emit(f"\tmov\t{K[2]}, #{1 if cm else 0}")
+        emit(f"\tmov\t{K[3]}, #1")
+        emit(f"\tmov\t{h}, xzr")
+        emit(f"\tsub\t{N}, {N}, #1")
+
+        def rest(g, m):
+            emit(f"\tcmp\t{K[2]}, #1")
+            for i in range(0, m, 2):
+                k = min(2, m - i)
+                g.acc("ld", L[:k], C, i)
+                for j in range(k):
+                    u = S[i + j]
+                    if cm == 2:
+                        emit(f"\tsbcs\t{u}, {L[j]}, {u}")
+                    else:
+                        emit(f"\t{op(cm)}\t{u}, {u}, {L[j]}")
+            emit(f"\tcset\t{K[2]}, cs")
+            for u in range(m):
+                dbm1_step(S[u], h, p0, p1, bd)
+            for i in range(0, m, 2):
+                g.acc("st", S[i:i + min(2, m - i)], R1, i)
+            emit(f"\tcmp\t{K[3]}, #1")
+            for i in range(0, m, 2):
+                k = min(2, m - i)
+                g.acc("ld", L[:k], C, i)
+                for j in range(k):
+                    emit(f"\tsbcs\t{L[j]}, {L[j]}, {S[i + j]}")
+                g.acc("st", L[:k], R2, i)
+            emit(f"\tcset\t{K[3]}, cs")
+
+        def block(m):
+            g = Grp(m)
+            emit(f"\tcmp\t{K[1]}, #1")
+            for i in range(0, m, 2):
+                k = min(2, m - i)
+                g.acc("ld", S[i + 1:i + 1 + k], X, i)
+                g.acc("ld", L[:k], Y, i)
+                for j in range(k):
+                    r = S[i + 1 + j]
+                    emit(f"\t{op(ysub)}\t{r}, {r}, {L[j]}")
+            emit(f"\tcset\t{K[1]}, cs")
+            for u in range(m):
+                emit(f"\textr\t{S[u]}, {S[u + 1]}, {S[u]}, #2")
+            rest(g, m)
+            emit(f"\tmov\t{S[0]}, {S[m]}")
+
+        for b in (0, 1, 2):
+            skip = lab("q6r")
+            emit(f"\ttbz\t{N}, #{b}, {skip}")
+            block(1 << b)
+            emit(f"{skip}:")
+        grp, done = lab("q6g"), lab("q6d")
+        emit(f"\tlsr\t{N}, {N}, #3")
+        emit(f"\tcbz\t{N}, {done}")
+        emit("\t.p2align\t4")
+        emit(f"{grp}:")
+        block(8)
+        emit(f"\tsub\t{N}, {N}, #1")
+        emit(f"\tcbnz\t{N}, {grp}")
+        emit(f"{done}:")
+        emit(f"\tasr\t{S[0]}, {S[0]}, #2")
+        rest(Grp(1), 1)
+        emit(f"\tb\t{end}")
+    mode_table(table, entries)
+    emit(f"{end}:")
+    emit("\tmov\tx0, xzr")
+    emit("\tldp\tx21, x22, [sp, #16]")
+    emit("\tldp\tx23, x24, [sp, #32]")
+    emit("\tldp\tx19, x20, [sp], #48")
+    epilogue(name)
+
+
+def tc5q():
+    """gtc_tc5q_n (mp_ptr a1, mp_ptr a2, mp_srcptr xp, mp_srcptr yp,
+    mp_srcptr cp, mp_size_t n, unsigned mode): in one pass over n >= 1
+    limbs, all read as signed n-limb numbers, t = (x + y mod B^n) >> s,
+    arithmetic and exact, s = 2 + (mode >> 3 & 1), y subtracted with mode
+    & 1; q = (t + c)/5 modulo B^n, exact, c subtracted with mode & 2; {a1,
+    n} += q and {a2, n} += c - q, c's sign as in q, both subtracted with
+    mode & 4.  q is never stored.  Returns the net carries out of a1 and
+    a2 as two 32-bit signed halves, a1's low; a2's only where c - q (c + q
+    where c is subtracted) fits in n limbs, as it is made in n limbs and
+    added sign-extended.  a1 and a2 overlap neither each other nor the
+    operands.  Per block of 8 limbs (the n - 1 mod 8 first, in blocks of 1,
+    2 and 4 by its bits), along the flag one chain after the other, each
+    parked between blocks (cset, cmp): the sums of the next limbs into
+    S[1..m], t into S[0..m-1] by extr (the last sum before in S[0]), t +-
+    c, q by dbm1_step into the same registers, a1 +- q, then D = c - q (or
+    E = c + q where c is subtracted) over q's registers and a2 +- D (or -+
+    E).  The last limb's t is the last sum shifted arithmetically.  One
+    copy per mode, entered through a tree on its bits."""
+    name = "gtc_tc5q_n"
     prologue(name)
     emit("\tstp\tx19, x20, [sp, #-64]!")
     emit("\tstp\tx21, x22, [sp, #16]")
     emit("\tstp\tx23, x24, [sp, #32]")
     emit("\tstp\tx25, x26, [sp, #48]")
-    U = ["x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15"]
+    A1, A2, X, Y, C, N = "x0", "x1", "x2", "x3", "x4", "x5"
+    S = ["x8", "x9", "x10", "x11", "x12", "x13", "x14", "x15", "x19"]
     L = ["x16", "x17"]
-    bd, h, p0, p1 = (f"x{r}" for r in range(22, 26))
-    labels = {(v, zy): lab(f"ds{v}_") for v in (0, 1, 2) for zy in (0, 1)}
-    end = lab("dsend")
-    emit("\tmov\tx19, x5\t\t// sp")
-    if kind == "sub":
-        emit("\tmov\tx20, #1\t\t// z - q's C: no borrow")
+    bd, h, p0, p1 = "x20", "x21", "x22", "x23"
+    K = {1: "x6", 2: "x7", 3: "x24", 4: "x25", 5: "x26"}
     emit(f"\tmov\t{bd}, #0x3333333333333333\t// (B-1)/5")
-    emit(f"\tmov\t{h}, xzr")
-    emit("\tand\tw7, w4, #3")
-    zy1 = lab("dsz")
-    emit(f"\ttbnz\tw4, #2, {zy1}")
-    for zy in (0, 1):
-        if zy:
-            emit(f"{zy1}:")
-        emit("\tcmp\tw7, #1")
-        emit(f"\tb.eq\t{labels[(1, zy)]}")
-        emit(f"\tb.hi\t{labels[(2, zy)]}")
-        emit(f"\tb\t{labels[(0, zy)]}")
-
-    def block(nl, mode, zy):
-        g = Grp(nl)
-        z = "x2" if zy else "x1"
-        for i in range(0, nl, 2):
-            g.acc("ld", U[i:i + min(2, nl - i)], "x1", i)
-        emit("\tcmp\tx6, #1")
-        for i in range(0, nl, 2):
-            k = min(2, nl - i)
-            g.acc("ld", L[:k], "x2", i)
-            for j in range(k):
-                if mode == 0:
-                    emit(f"\tadcs\t{U[i + j]}, {U[i + j]}, {L[j]}")
-                elif mode == 1:
-                    emit(f"\tsbcs\t{U[i + j]}, {U[i + j]}, {L[j]}")
-                else:
-                    emit(f"\tsbcs\t{U[i + j]}, {L[j]}, {U[i + j]}")
-        emit("\tcset\tx6, cs")
-        for i in range(nl):
-            dbm1_step(U[i], h, p0, p1, bd, False)
-        for i in range(0, nl, 2):
-            g.acc("st", U[i:i + min(2, nl - i)], "x0", i)
-        emit("\tcmp\tx20, #1")
-        for i in range(0, nl, 2):
-            k = min(2, nl - i)
-            if kind == "sub":
-                g.acc("ld", L[:k], z, i)
-                for j in range(k):
-                    emit(f"\tsbcs\t{L[j]}, {L[j]}, {U[i + j]}")
-            else:
-                g.acc("ld", L[:k], "x19", i)
-                for j in range(k):
-                    emit(f"\t{'sbcs' if zy else 'adcs'}\t{L[j]}, {L[j]}, {U[i + j]}")
-            g.acc("st", L[:k], "x19", i)
-        emit("\tcset\tx20, cs")
-
-    for (mode, zy), l in labels.items():
+    table, end = lab("q5t"), lab("q5e")
+    emit("\tand\tw6, w6, #15")
+    mode_dispatch("w6", table)
+    entries = []
+    for mode in range(16):
+        ysub, csub, asub, sh = (mode & 1, mode >> 1 & 1, mode >> 2 & 1,
+                                2 + (mode >> 3 & 1))
+        op = lambda sub: "sbcs" if sub else "adcs"
+        # a2 += a (kc C - q): D = C - q, a2 +- D; or E = C + q, a2 -+ E
+        a2sub = asub ^ csub
+        l = lab("q5m")
+        entries.append(l)
         emit(f"{l}:")
-        emit(f"\tmov\tx6, #{1 if mode else 0}\t\t// C = 1 where the chain subtracts")
-        if kind == "acc":
-            emit(f"\tmov\tx20, #{zy}\t\t// the third chain's C likewise")
+        emit(f"\tldr\t{S[0]}, [{X}], #8")
+        emit(f"\tldr\t{L[0]}, [{Y}], #8")
+        emit(f"\t{'subs' if ysub else 'adds'}\t{S[0]}, {S[0]}, {L[0]}\t// s0")
+        emit(f"\tcset\t{K[1]}, cs")
+        # C as each chain starts: no carry (adcs) or no borrow (sbcs)
+        emit(f"\tmov\t{K[2]}, #{csub}")
+        emit(f"\tmov\t{K[3]}, #{asub}")
+        emit(f"\tmov\t{K[4]}, #{1 - csub}")
+        emit(f"\tmov\t{K[5]}, #{a2sub}")
+        emit(f"\tmov\t{h}, xzr")
+        emit(f"\tsub\t{N}, {N}, #1")
+
+        def rest(g, m, last=False):
+            """t in S[0..m-1]: + c, / 5, the accumulations."""
+            emit(f"\tcmp\t{K[2]}, #1")
+            for i in range(0, m, 2):
+                k = min(2, m - i)
+                g.acc("ld", L[:k], C, i)
+                for j in range(k):
+                    emit(f"\t{op(csub)}\t{S[i + j]}, {S[i + j]}, {L[j]}")
+            emit(f"\tcset\t{K[2]}, cs")
+            for u in range(m):
+                dbm1_step(S[u], h, p0, p1, bd)
+            if last:
+                emit(f"\tlsr\t{p0}, {S[0]}, #63\t// q's sign bit")
+            emit(f"\tcmp\t{K[3]}, #1")
+            for i in range(0, m, 2):
+                k = min(2, m - i)
+                g.acc("ld", L[:k], A1, i)
+                for j in range(k):
+                    emit(f"\t{op(asub)}\t{L[j]}, {L[j]}, {S[i + j]}")
+                g.acc("st", L[:k], A1, i)
+            emit(f"\tcset\t{K[3]}, cs")
+            emit(f"\tcmp\t{K[4]}, #1")
+            for i in range(0, m, 2):
+                k = min(2, m - i)
+                g.acc("ld", L[:k], C, i)
+                for j in range(k):
+                    emit(f"\t{op(not csub)}\t{S[i + j]}, {L[j]}, {S[i + j]}"
+                         if not csub else
+                         f"\tadcs\t{S[i + j]}, {L[j]}, {S[i + j]}")
+            emit(f"\tcset\t{K[4]}, cs")
+            emit(f"\tcmp\t{K[5]}, #1")
+            for i in range(0, m, 2):
+                k = min(2, m - i)
+                g.acc("ld", L[:k], A2, i)
+                for j in range(k):
+                    emit(f"\t{op(a2sub)}\t{L[j]}, {L[j]}, {S[i + j]}")
+                g.acc("st", L[:k], A2, i)
+            emit(f"\tcset\t{K[5]}, cs")
+
+        def block(m):
+            g = Grp(m)
+            emit(f"\tcmp\t{K[1]}, #1")
+            for i in range(0, m, 2):
+                k = min(2, m - i)
+                g.acc("ld", S[i + 1:i + 1 + k], X, i)
+                g.acc("ld", L[:k], Y, i)
+                for j in range(k):
+                    r = S[i + 1 + j]
+                    emit(f"\t{op(ysub)}\t{r}, {r}, {L[j]}")
+            emit(f"\tcset\t{K[1]}, cs")
+            for u in range(m):
+                emit(f"\textr\t{S[u]}, {S[u + 1]}, {S[u]}, #{sh}")
+            rest(g, m)
+            emit(f"\tmov\t{S[0]}, {S[m]}")
+
         for b in (0, 1, 2):
-            skip = lab("dsr")
-            emit(f"\ttbz\tx3, #{b}, {skip}")
-            block(1 << b, mode, zy)
+            skip = lab("q5r")
+            emit(f"\ttbz\t{N}, #{b}, {skip}")
+            block(1 << b)
             emit(f"{skip}:")
-        grp, done = lab("dsg"), lab("dsd")
-        emit("\tlsr\tx5, x3, #3")
-        emit(f"\tcbz\tx5, {done}")
+        grp, done = lab("q5g"), lab("q5d")
+        emit(f"\tlsr\t{N}, {N}, #3")
+        emit(f"\tcbz\t{N}, {done}")
         emit("\t.p2align\t4")
         emit(f"{grp}:")
-        block(8, mode, zy)
-        emit("\tsub\tx5, x5, #1")
-        emit(f"\tcbnz\tx5, {grp}")
+        block(8)
+        emit(f"\tsub\t{N}, {N}, #1")
+        emit(f"\tcbnz\t{N}, {grp}")
         emit(f"{done}:")
+        emit(f"\tasr\t{S[0]}, {S[0]}, #{sh}")
+        rest(Grp(1), 1, last=True)
+        # net carries: an addition's carry less the sign bit of what it
+        # added; a subtraction's sign bit less its borrow (1 - C)
+        emit(f"\tlsr\t{p1}, {S[0]}, #63\t// D's (or E's) sign bit")
+        if asub:
+            emit(f"\tadd\tx0, {p0}, {K[3]}")
+            emit("\tsub\tx0, x0, #1")
+        else:
+            emit(f"\tsub\tx0, {K[3]}, {p0}")
+        if a2sub:
+            emit(f"\tadd\tx1, {p1}, {K[5]}")
+            emit("\tsub\tx1, x1, #1")
+        else:
+            emit(f"\tsub\tx1, {K[5]}, {p1}")
+        emit("\tmov\tw0, w0")
+        emit("\torr\tx0, x0, x1, lsl #32")
         emit(f"\tb\t{end}")
+    mode_table(table, entries)
     emit(f"{end}:")
-    if kind == "sub":
-        emit(f"\tmov\tx0, {h}")
-    else:
-        # a carry is C; a borrow is 1 - C (the paths with zy subtract)
-        emit("\tmov\tx0, x20")
-        emit("\ttbz\tw4, #2, 1f")
-        emit("\teor\tx0, x0, #1")
-        emit("1:")
     emit("\tldp\tx21, x22, [sp, #16]")
     emit("\tldp\tx23, x24, [sp, #32]")
     emit("\tldp\tx25, x26, [sp, #48]")
     emit("\tldp\tx19, x20, [sp], #64")
     epilogue(name)
+
+
+def tc5q4c2():
+    """gtc_tc5q4c2_n (mp_ptr rp, mp_ptr cp, mp_srcptr xp, mp_srcptr yp,
+    mp_srcptr q0, mp_srcptr q8, mp_size_t n, mp_size_t n8y): {rp, n} =
+    ((x +- y mod B^n) >> 2) - q0 - q8 modulo B^n (y subtracted with n8y &
+    1, q8 of n8 = n8y >> 1 limbs sign-extended, 1 <= n8 <= n) and in the
+    same pass {cp, n} = (x -+ y mod B^n) >> 2, the other operation, the
+    shifts arithmetic and exact.  n >= 1; cp may equal yp.  Per block of 4
+    limbs: x into S[1..m] and y into Y, the differences into D[1..m] along
+    the flag, then the sums over S, both one limb ahead, shifted by extr
+    into S[0..m-1] and D[0..m-1], D stored, then t - q0 and - q8, the four
+    chains each parked between blocks (cset, cmp); the limbs of q8's sign
+    extension below n - 1 likewise, then the last limb."""
+    name = "gtc_tc5q4c2_n"
+    prologue(name)
+    emit("\tstp\tx19, x20, [sp, #-80]!")
+    for i, (a, b) in enumerate((("x21", "x22"), ("x23", "x24"), ("x25", "x26"),
+                                ("x27", "x28")), 1):
+        emit(f"\tstp\t{a}, {b}, [sp, #{16 * i}]")
+    RP, CP, X, Y, Q0, Q8 = "x0", "x1", "x2", "x3", "x4", "x5"
+    S = ["x8", "x9", "x10", "x11", "x12"]
+    D = ["x13", "x14", "x15", "x16", "x17"]
+    YR = ["x19", "x20", "x21", "x22"]
+    K = {1: "x23", 2: "x24", 3: "x25", 4: "x26"}
+    sign, cb, last, ca = "x27", "x28", "x6", "x7"
+    emit("\tlsr\tx19, x7, #1\t\t// n8")
+    emit("\tand\tx22, x7, #1\t\t// y subtracted")
+    emit("\tsub\tx20, x6, #1\t\t// n - 1")
+    emit("\tsub\tx21, x19, #1")
+    emit(f"\tldr\t{last}, [{Q8}, x21, lsl #3]\t// q8's top limb")
+    emit(f"\tasr\t{sign}, {last}, #63\t// its sign limb")
+    emit("\tcmp\tx19, x20")
+    emit(f"\tcsel\t{last}, {last}, {sign}, hi\t// q8's limb n - 1")
+    emit("\tcsel\tx21, x19, x20, lo\t// the first part: min (n8, n - 1)")
+    emit(f"\tsub\t{cb}, x20, x21\t// the second")
+    emit(f"\tmov\t{ca}, x21")
+    minus, end = lab("qcm"), lab("qce")
+    emit(f"\tcbnz\tx22, {minus}")
+    op = lambda sub: "sbcs" if sub else "adcs"
+
+    def rest(g, m, tail):
+        emit(f"\tcmp\t{K[2]}, #1")
+        for i in range(0, m, 2):
+            k = min(2, m - i)
+            g.acc("ld", YR[:k], Q0, i)
+            for j in range(k):
+                emit(f"\tsbcs\t{S[i + j]}, {S[i + j]}, {YR[j]}")
+        emit(f"\tcset\t{K[2]}, cs")
+        emit(f"\tcmp\t{K[3]}, #1")
+        for i in range(0, m, 2):
+            k = min(2, m - i)
+            if tail:
+                for j in range(k):
+                    emit(f"\tsbcs\t{S[i + j]}, {S[i + j]}, {sign}")
+            else:
+                g.acc("ld", YR[:k], Q8, i)
+                for j in range(k):
+                    emit(f"\tsbcs\t{S[i + j]}, {S[i + j]}, {YR[j]}")
+        emit(f"\tcset\t{K[3]}, cs")
+        for i in range(0, m, 2):
+            g.acc("st", S[i:i + min(2, m - i)], RP, i)
+
+    def block(m, ysub, tail):
+        g = Grp(m)
+        for i in range(0, m, 2):
+            k = min(2, m - i)
+            g.acc("ld", S[i + 1:i + 1 + k], X, i)
+            g.acc("ld", YR[i:i + k], Y, i)
+        emit(f"\tcmp\t{K[4]}, #1")
+        for u in range(m):
+            emit(f"\t{op(1 - ysub)}\t{D[u + 1]}, {S[u + 1]}, {YR[u]}")
+        emit(f"\tcset\t{K[4]}, cs")
+        emit(f"\tcmp\t{K[1]}, #1")
+        for u in range(m):
+            emit(f"\t{op(ysub)}\t{S[u + 1]}, {S[u + 1]}, {YR[u]}")
+        emit(f"\tcset\t{K[1]}, cs")
+        for u in range(m):
+            emit(f"\textr\t{S[u]}, {S[u + 1]}, {S[u]}, #2")
+            emit(f"\textr\t{D[u]}, {D[u + 1]}, {D[u]}, #2")
+        for i in range(0, m, 2):
+            g.acc("st", D[i:i + min(2, m - i)], CP, i)
+        rest(g, m, tail)
+        emit(f"\tmov\t{S[0]}, {S[m]}")
+        emit(f"\tmov\t{D[0]}, {D[m]}")
+
+    for ysub in (0, 1):
+        if ysub:
+            emit(f"{minus}:")
+        emit(f"\tldr\t{S[1]}, [{X}], #8")
+        emit(f"\tldr\t{YR[0]}, [{Y}], #8")
+        emit(f"\t{'adds' if ysub else 'subs'}\t{D[0]}, {S[1]}, {YR[0]}\t// d0")
+        emit(f"\tcset\t{K[4]}, cs")
+        emit(f"\t{'subs' if ysub else 'adds'}\t{S[0]}, {S[1]}, {YR[0]}\t// s0")
+        emit(f"\tcset\t{K[1]}, cs")
+        emit(f"\tmov\t{K[2]}, #1")
+        emit(f"\tmov\t{K[3]}, #1")
+        for b in (0, 1):
+            skip = lab("qcr")
+            emit(f"\ttbz\t{ca}, #{b}, {skip}")
+            block(1 << b, ysub, False)
+            emit(f"{skip}:")
+        grp, done = lab("qcg"), lab("qcd")
+        emit(f"\tlsr\t{ca}, {ca}, #2")
+        emit(f"\tcbz\t{ca}, {done}")
+        emit("\t.p2align\t4")
+        emit(f"{grp}:")
+        block(4, ysub, False)
+        emit(f"\tsub\t{ca}, {ca}, #1")
+        emit(f"\tcbnz\t{ca}, {grp}")
+        emit(f"{done}:")
+        for b in (0, 1):
+            skip = lab("qcr")
+            emit(f"\ttbz\t{cb}, #{b}, {skip}")
+            block(1 << b, ysub, True)
+            emit(f"{skip}:")
+        tg, td = lab("qcg"), lab("qcd")
+        emit(f"\tlsr\t{cb}, {cb}, #2")
+        emit(f"\tcbz\t{cb}, {td}")
+        emit(f"{tg}:")
+        block(4, ysub, True)
+        emit(f"\tsub\t{cb}, {cb}, #1")
+        emit(f"\tcbnz\t{cb}, {tg}")
+        emit(f"{td}:")
+        # the last limb: the last sum and difference shifted arithmetically
+        emit(f"\tasr\t{D[0]}, {D[0]}, #2")
+        emit(f"\tstr\t{D[0]}, [{CP}]")
+        emit(f"\tasr\t{S[0]}, {S[0]}, #2")
+        emit(f"\tldr\t{YR[0]}, [{Q0}]")
+        emit(f"\tcmp\t{K[2]}, #1")
+        emit(f"\tsbcs\t{S[0]}, {S[0]}, {YR[0]}")
+        emit(f"\tcmp\t{K[3]}, #1")
+        emit(f"\tsbcs\t{S[0]}, {S[0]}, {last}")
+        emit(f"\tstr\t{S[0]}, [{RP}]")
+        emit(f"\tb\t{end}")
+    emit(f"{end}:")
+    for i, (a, b) in enumerate((("x21", "x22"), ("x23", "x24"), ("x25", "x26"),
+                                ("x27", "x28")), 1):
+        emit(f"\tldp\t{a}, {b}, [sp, #{16 * i}]")
+    emit("\tldp\tx19, x20, [sp], #80")
+    epilogue(name)
+
+
+def tc5quad():
+    """gtc_tc5quad_n (mp_ptr ap, mp_ptr bp, mp_ptr cp, mp_ptr dp,
+    mp_size_t n, unsigned mode): with P = a + b, M = a - b, Q = c + d, N
+    = c - d (mod B^n), G = P and H1 = M with mode & 1 (else G = M, H1 =
+    P), D = Q and H2 = N with mode & 2 (else D = N, H2 = Q); then a = H1,
+    c = H2, b = (G - D) >> 2 and d = (G + D) >> 2 with mode & 4 (else b =
+    (G + D) >> 2, d = (G - D) >> 2), the shifts arithmetic, all in place.
+    n >= 1.  Per block of 4 limbs: c and d loaded, N then Q along the flag,
+    H2 stored and D kept; a and b, M then P, H1 stored and G kept; G +- D
+    into a free set and G -+ D over D, one limb ahead, shifted by extr and
+    stored a limb behind; the six chains each parked between blocks (cset,
+    cmp).  The first limb before the blocks, the last's shifts after them.
+    One copy per mode, entered through a tree on its bits."""
+    name = "gtc_tc5quad_n"
+    prologue(name)
+    emit("\tstp\tx19, x20, [sp, #-96]!")
+    for i, (a_, b_) in enumerate((("x21", "x22"), ("x23", "x24"), ("x25", "x26"),
+                                  ("x27", "x28"), ("x29", "x30")), 1):
+        emit(f"\tstp\t{a_}, {b_}, [sp, #{16 * i}]")
+    A, B, C, D, N = "x0", "x1", "x2", "x3", "x4"
+    SETS = [["x6", "x7", "x8", "x9"], ["x10", "x11", "x12", "x13"],
+            ["x14", "x15", "x16", "x17"], ["x19", "x20", "x21", "x22"]]
+    XP, YP = "x23", "x24"
+    kP, kM, kQ, kN, kX, kY = "x5", "x25", "x26", "x27", "x28", "x29"
+    table, end = lab("qdt"), lab("qde")
+    emit("\tand\tw5, w5, #7")
+    mode_dispatch("w5", table)
+
+    def chain(park, ops):
+        emit(f"\tcmp\t{park}, #1")
+        for o in ops:
+            emit(o)
+        emit(f"\tcset\t{park}, cs")
+
+    def block(m, mode, first=False):
+        """m limbs; first: limb 0, the X and Y limbs kept unshifted."""
+        m0, m1, m2 = mode & 1, mode >> 1 & 1, mode >> 2 & 1
+        g = Grp(m)
+        s0, s1, s2, s3 = SETS
+        for i in range(0, m, 2):
+            k = min(2, m - i)
+            g.acc("ld", s0[i:i + k], C, i)
+            g.acc("ld", s1[i:i + k], D, i)
+        if first:
+            emit(f"\tsubs\t{s2[0]}, {s0[0]}, {s1[0]}")
+            emit(f"\tcset\t{kN}, cs")
+            emit(f"\tadds\t{s0[0]}, {s0[0]}, {s1[0]}")
+            emit(f"\tcset\t{kQ}, cs")
+        else:
+            chain(kN, [f"\tsbcs\t{s2[u]}, {s0[u]}, {s1[u]}" for u in range(m)])
+            chain(kQ, [f"\tadcs\t{s0[u]}, {s0[u]}, {s1[u]}" for u in range(m)])
+        h2, dd = (s2, s0) if m1 else (s0, s2)
+        for i in range(0, m, 2):
+            g.acc("st", h2[i:i + min(2, m - i)], C, i)
+        # free: s1 and h2; a into s3, b into s1, M into h2
+        mm = h2
+        for i in range(0, m, 2):
+            k = min(2, m - i)
+            g.acc("ld", s3[i:i + k], A, i)
+            g.acc("ld", s1[i:i + k], B, i)
+        if first:
+            emit(f"\tsubs\t{mm[0]}, {s3[0]}, {s1[0]}")
+            emit(f"\tcset\t{kM}, cs")
+            emit(f"\tadds\t{s3[0]}, {s3[0]}, {s1[0]}")
+            emit(f"\tcset\t{kP}, cs")
+        else:
+            chain(kM, [f"\tsbcs\t{mm[u]}, {s3[u]}, {s1[u]}" for u in range(m)])
+            chain(kP, [f"\tadcs\t{s3[u]}, {s3[u]}, {s1[u]}" for u in range(m)])
+        h1, gg = (mm, s3) if m0 else (s3, mm)
+        for i in range(0, m, 2):
+            g.acc("st", h1[i:i + min(2, m - i)], A, i)
+        # X = G -+ D into s1 (free), Y = G +- D over D
+        xs = s1
+        xop, yop = ("sbcs", "adcs") if m2 else ("adcs", "sbcs")
+        if first:
+            nc = {"adcs": "adds", "sbcs": "subs"}
+            emit(f"\t{nc[xop]}\t{XP}, {gg[0]}, {dd[0]}")
+            emit(f"\tcset\t{kX}, cs")
+            emit(f"\t{nc[yop]}\t{YP}, {gg[0]}, {dd[0]}")
+            emit(f"\tcset\t{kY}, cs")
+            return
+        chain(kX, [f"\t{xop}\t{xs[u]}, {gg[u]}, {dd[u]}" for u in range(m)])
+        chain(kY, [f"\t{yop}\t{dd[u]}, {gg[u]}, {dd[u]}" for u in range(m)])
+        for prev, cur, P_ in ((XP, xs, B), (YP, dd, D)):
+            emit(f"\textr\t{prev}, {cur[0]}, {prev}, #2")
+            for u in range(m - 1):
+                emit(f"\textr\t{cur[u]}, {cur[u + 1]}, {cur[u]}, #2")
+            outs = [prev] + cur[:m - 1]
+            for i in range(0, m, 2):
+                g.acc("st", outs[i:i + min(2, m - i)], P_, i - 1)
+            emit(f"\tmov\t{prev}, {cur[m - 1]}")
+
+    entries = []
+    for mode in range(8):
+        l = lab("qdm")
+        entries.append(l)
+        emit(f"{l}:")
+        block(1, mode, first=True)
+        emit(f"\tsub\t{N}, {N}, #1")
+        for b in (0, 1):
+            skip = lab("qdr")
+            emit(f"\ttbz\t{N}, #{b}, {skip}")
+            block(1 << b, mode)
+            emit(f"{skip}:")
+        grp, done = lab("qdg"), lab("qdd")
+        emit(f"\tlsr\t{N}, {N}, #2")
+        emit(f"\tcbz\t{N}, {done}")
+        emit("\t.p2align\t4")
+        emit(f"{grp}:")
+        block(4, mode)
+        emit(f"\tsub\t{N}, {N}, #1")
+        emit(f"\tcbnz\t{N}, {grp}")
+        emit(f"{done}:")
+        emit(f"\tasr\t{XP}, {XP}, #2")
+        emit(f"\tstr\t{XP}, [{B}, #-8]")
+        emit(f"\tasr\t{YP}, {YP}, #2")
+        emit(f"\tstr\t{YP}, [{D}, #-8]")
+        emit(f"\tb\t{end}")
+    emit(f"{end}:")
+    for i, (a_, b_) in enumerate((("x21", "x22"), ("x23", "x24"), ("x25", "x26"),
+                                  ("x27", "x28"), ("x29", "x30")), 1):
+        emit(f"\tldp\t{a_}, {b_}, [sp, #{16 * i}]")
+    emit("\tldp\tx19, x20, [sp], #96")
+    emit("\tret")
+    mode_table(table, entries)
+    emit(f"\t.size\t{name}, .-{name}")
 
 
 def main():
@@ -1253,9 +1792,8 @@ def main():
     emit("   gtc_aors2_n, gtc_add3_n, gtc_aors2x_n, gtc_rsh1add_n,")
     emit("   gtc_rsh1sub_n, gtc_kara_recomp2, gtc_add_n, gtc_sub_n,")
     emit("   gtc_rsh1add3_n, gtc_div15_lsh_n, gtc_addlsh123_n, gtc_div5_lsh_n,")
-    emit("   gtc_rsh2add_n, gtc_rsh2sub_n, gtc_rsh2add3_n,")
-    emit("   gtc_rsh3add3_n, gtc_div5_add_n, gtc_t5r_n, gtc_div5_add_sub_n,")
-    emit("   gtc_div5_add_acc_n, gtc_rsh3add_n and gtc_rsh3sub_n.")
+    emit("   gtc_rsh2add_n, gtc_rsh2sub_n, gtc_t5r_n, gtc_tc5q_n, gtc_tc5s_n,")
+    emit("   gtc_tc5uys_n, gtc_tc5q4c2_n and gtc_tc5quad_n.")
     emit("   See that file for what they compute and how.  */")
     emit("#if defined (__aarch64__) && defined (__ELF__) && !defined (GTC_NO_ASM)")
     emit("\t.text")
@@ -1267,12 +1805,8 @@ def main():
               lambda: addsub_n("gtc_sub_n", True), rsh1add3, div15_lsh, addlsh123,
               div5_lsh,
               lambda: rsh1("gtc_rsh2add_n", False, 2),
-              lambda: rsh1("gtc_rsh2sub_n", True, 2),
-              lambda: rsh1add3("gtc_rsh2add3_n", 2),
-              lambda: rsh1add3("gtc_rsh3add3_n", 3), div5_add, t5r, lambda: div5_add_fused("sub"),
-              lambda: div5_add_fused("acc"),
-              lambda: rsh1("gtc_rsh3add_n", False, 3),
-              lambda: rsh1("gtc_rsh3sub_n", True, 3)):
+              lambda: rsh1("gtc_rsh2sub_n", True, 2), t5r,
+              tc5q, tc5s, tc5uys, tc5q4c2, tc5quad):
         emit("")
         f()
     emit('\t.section\t.note.GNU-stack,"",%progbits')
