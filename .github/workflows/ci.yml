@@ -42,6 +42,7 @@ jobs:
           make -j4 EXTRA_CFLAGS=-Werror
           make -j4 EXTRA_CFLAGS=-Werror check
           build/bench_gtc --quick
+          build/bench_gauss --quick
       - name: Install and link through pkg-config
         if: matrix.build == 'default'
         run: |

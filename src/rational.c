@@ -645,14 +645,14 @@ mp_limb_t gtc_div5_lsh_n (mp_ptr, mp_srcptr, mp_srcptr, mp_size_t,
 			  unsigned);
 #endif
 
-/* GTC_RTC4_SHLD: r2gtc_44's division by 5 by gtc_div5_rlsh_n, which
-   makes the limbs of 4 q4 by shld and subtracts the other way, (4 q4 -
-   x)/5, the sign flipped after; else gtc_div5_lsh_n.  Per
+/* GTC_RTC4_SHLD: r2gtc_44's division by 5 by gtc_div5n_rlsh_n, which
+   makes the limbs of 4 q4 by shld and the quotient's negative by two
+   carry chains, the flag flipped after; else gtc_div5_lsh_n.  Per
    microarchitecture.  */
 #if defined (GTC_ASM_X86) && !defined (GTC_ZEN)
 #define GTC_RTC4_SHLD 1
-mp_limb_t gtc_div5_rlsh_n (mp_ptr, mp_srcptr, mp_srcptr, mp_size_t,
-			   unsigned);
+mp_limb_t gtc_div5n_rlsh_n (mp_ptr, mp_srcptr, mp_srcptr, mp_size_t,
+			    unsigned);
 #else
 #define GTC_RTC4_SHLD 0
 #endif
@@ -732,10 +732,11 @@ r2gtc_44_interp (mp_ptr rp, mp_size_t n, mp_size_t k, mp_size_t h, rrows4 *r)
   x.neg ^= 1;
 #if GTC_RTC4_SHLD
   {
-    /* where the flags agree, 4 q4 - x, the negated quotient */
+    /* (x - 4 q4)/5 of the stored limbs where the flags agree, -(x + 4
+       q4)/5 where they differ, whose flag flips */
     unsigned sub = x.neg == q4.neg;
-    gtc_div5_rlsh_n (x.p, x.p, q4.p, w, sub);
-    x.neg ^= sub;
+    gtc_div5n_rlsh_n (x.p, x.p, q4.p, w, sub);
+    x.neg ^= sub ^ 1;
   }
 #elif defined (GTC_ACC_ASM)
   /* the kernel subtracts 4 q4 where the flags agree */
@@ -802,10 +803,6 @@ r2gtc_44 (gtc_ctx *c, mp_ptr rp, mp_srcptr ap, mp_srcptr bp, mp_size_t n)
    GTC_RTC5_MISIGN: Im P(-1+i) = v - 2 a2 by its sign from the top limbs,
    2 a2 - v by GTC_RSBLSH1_N where negative; else v - 2 a2, then tc_abs.
    And r2gtc_55_interp's:
-   GTC_RTC5_Z5: q6 and q2 = C2 - q6 in one pass (gtc_div5_add_sub_n);
-   else the division, then the subtraction.
-   GTC_RTC5_Z6: q5 and q7 added into the result by the passes of their
-   divisions (gtc_div5_add_acc_n); else the divisions, then two acc.
    GTC_RTC5_Q8LSH2: 4 q8 by GTC_ADDLSH2_N; else GTC_ADDMUL_1.  */
 #if defined (GTC_ZEN)
 #define GTC_RTC5_S1SIGN 0
@@ -823,13 +820,6 @@ r2gtc_44 (gtc_ctx *c, mp_ptr rp, mp_srcptr ap, mp_srcptr bp, mp_size_t n)
 #define GTC_RTC5_MISIGN 1
 #else
 #define GTC_RTC5_MISIGN 0
-#endif
-#if defined (GTC_ACC_ASM) && !defined (GTC_ZEN)
-#define GTC_RTC5_Z5 1
-#define GTC_RTC5_Z6 1
-#else
-#define GTC_RTC5_Z5 0
-#define GTC_RTC5_Z6 0
 #endif
 #if defined (__aarch64__) || defined (__AVX512F__) || defined (GTC_ASM_X86)
 #define GTC_RTC5_Q8LSH2 1
@@ -1008,18 +998,45 @@ r2gtc_55_quarter (mp_ptr dp, sreg x, sreg y, int s, mp_size_t w)
 #endif
 }
 
+#ifdef GTC_ACC_ASM
+/* q = (c - A)/5 with A = (x + s y)/2^sh (q5: sh = 2, q7: 3): q added at
+   rp + o1 and c - q at rp + o2, both sign-extended over the len limbs,
+   in one pass.  q and c - q are coefficients of the product, below 5
+   B^(w-1): q is never -B^w/2, which the q pass excludes.  tmp: w limbs,
+   used where q's region runs past rp's end.  */
+GTC_INLINE void
+rtc5_qacc (mp_ptr rp, mp_size_t len, mp_size_t o1, mp_size_t o2,
+	   mp_size_t w, sreg x, sreg y, int s, unsigned sh, sreg c,
+	   mp_ptr tmp)
+{
+  /* t = A x's sign as stored, q' = (t -+ c)/5, q = -x's sign q' */
+  unsigned ysub = (s > 0) != (x.neg == y.neg);
+  unsigned csub = x.neg == c.neg, asub = !x.neg;
+  mp_size_t m1 = len - o1;
+  mp_ptr a1 = rp + o1;
+  mp_limb_t nc;
+
+  if (m1 < w)
+    a1 = memcpy (tmp, a1, m1 * sizeof (mp_limb_t));
+  nc = GTC_TC5Q_N (a1, rp + o2, x.p, y.p, c.p, w,
+		   ysub | csub << 1 | asub << 2 | (sh == 3) << 3);
+  if (m1 < w)
+    memcpy (rp + o1, tmp, m1 * sizeof (mp_limb_t));
+  else if (m1 > w)
+    acc_limb_bf (rp + o1 + w, m1 - w,
+		 (mp_limb_t) (mp_limb_signed_t) (int32_t) nc);
+  acc_limb_bf (rp + o2 + w, len - o2 - w,
+	       (mp_limb_t) (mp_limb_signed_t) (int32_t) (nc >> 32));
+}
+#else
 /* d = (x + sy y + sz z) / 2^sh, exact, at width w; dp may be x's
    buffer.  */
 GTC_INLINE sreg
 r2gtc_55_add3_shr (mp_ptr dp, sreg x, sreg y, int sy, sreg z, int sz,
 	       unsigned sh, mp_size_t w)
 {
-#ifdef GTC_ACC_ASM
-  return reg_add3_shr (dp, x, y, sy, z, sz, sh, w);
-#else
   x = reg_add (dp, x, y, sy, w);
   return reg_rsh (reg_add (dp, x, z, sz, w), sh, w);
-#endif
 }
 
 /* d = (x + s y) / 5, exact, at width w; dp x's buffer, y's or one that
@@ -1027,28 +1044,79 @@ r2gtc_55_add3_shr (mp_ptr dp, sreg x, sreg y, int sy, sreg z, int sz,
 GTC_INLINE sreg
 r2gtc_55_div5 (mp_ptr dp, sreg x, sreg y, int s, mp_size_t w)
 {
-#ifdef GTC_ACC_ASM
-  return reg_div5_add (dp, x, y, s, w);
-#else
   x = reg_add (dp, x, y, s, w);
   mpn_bdiv_dbm1c (dp, dp, w, GMP_NUMB_MAX / 5, 0);
   return x;
-#endif
 }
+#endif
 
-/* Interpolation at width w = 2k+1, q0 and q8 read in the result, then
-   the recomposition.  With Re_p + i Im_p = Q(1+i), Re_m + i Im_m =
-   Q(-1+i), Re_i + i Im_i = Q(i) and M = Q(-1):
-     A0 = (Re_p + Re_m)/2 = q0 - 4 q4 + 16 q8,  S = Im_p + Im_m,
-     A1 = (S + Re_p - Re_m)/4 = q1 - 4 q5,
-     A2 = (Im_p - Im_m)/4 = q2 - 4 q6,
-     A3 = (S - Re_p + Re_m)/8 = q3 - 4 q7,
-     q4 = (q0 - A0)/4 + 4 q8,
+/* Interpolation at width w = 2k+1 into the result rp, q0 and q8 already
+   there.  With Re_p + i Im_p = Q(1+i), Re_m + i Im_m = Q(-1+i), Re_i + i
+   Im_i = Q(i), M = Q(-1), S = Im_p + Im_m and d = Re_p - Re_m:
+     A0 = (Re_p + Re_m)/2 = q0 - 4 q4 + 16 q8,  q4 = (q0 - A0)/4 + 4 q8,
      C2 = q0 + q4 + q8 - Re_i = q2 + q6,
      c1 = (Re_i - M + Im_i)/2 + C2 = q1 + q5,  c3 = c1 - Im_i = q3 + q7,
-     q6 = (C2 - A2)/5, q2 = C2 - q6, q5 = (c1 - A1)/5, q7 = (c3 - A3)/5,
-   and q1 = c1 - q5, q3 = c3 - q7 added by the recomposition as their two
-   terms.  T is scratch of w limbs.  */
+     q6 = (C2 - (Im_p - Im_m)/4)/5,  q2 = C2 - q6,
+     q5 = (c1 - (S + d)/4)/5,  q7 = (c3 - (S - d)/8)/5,
+     q1 = c1 - q5,  q3 = c3 - q7.
+   T is scratch of w limbs.  */
+#ifdef GTC_ACC_ASM
+/* q6 with q2, and q5 and q7 each with q1 or q3, in one pass, the
+   quarters and eighths never stored.  */
+GTC_INLINE void
+r2gtc_55_interp (mp_ptr rp, mp_size_t n, mp_size_t k, mp_size_t h, rrows5 *r,
+	     mp_ptr T)
+{
+  mp_size_t w = 2 * k + 1;
+  sreg q0w = { rp, 0 }, s, d, a0, q4, c2, hh, c1, c3;
+  mp_srcptr q8 = rp + 8 * k;
+  mp_limb_t t2, t4, t6, s8, cy;
+
+  rp[2 * k] = 0;
+  s = reg_add (T, r->ip, r->im, 1, w);
+  /* d over Re_m, then A0 = (2 Re_p - d)/2 over Re_p */
+  d = reg_add (r->rm.p, r->rp, r->rm, -1, w);
+  a0 = reg_add3_half (r->rp.p, r->rp, r->rp, 1, d, -1, w);
+  /* q4 into its place, its top limb over q6's low one */
+  q4 = r2gtc_55_quarter (rp + 4 * k, q0w, a0, -1, w);
+#if GTC_RTC5_Q8LSH2
+  cy = GTC_ADDLSH2_N (q4.p, q4.p, q8, 2 * h);
+#else
+  cy = GTC_ADDMUL_1 (q4.p, q8, 2 * h, 4);
+#endif
+  mpn_add_1 (q4.p + 2 * h, q4.p + 2 * h, w - 2 * h, cy);
+  /* C2 into A0's buffer, its flag clear */
+  c2 = reg_add3 (r->rp.p, q0w, q4, 1, r->ri, -1, w);
+  cy = GTC_ADD_N (c2.p, c2.p, q8, 2 * h);
+  mpn_add_1 (c2.p + 2 * h, c2.p + 2 * h, w - 2 * h, cy);
+  /* c1 into Re_i's buffer, c3 into Im_i's */
+  hh = reg_add3_half_any (r->m.p, r->ri, r->m, -1, r->ii, 1, w);
+  c1 = reg_add (r->ri.p, hh, c2, 1, w);
+  c3 = reg_add (r->ii.p, c1, r->ii, -1, w);
+  /* q6 and q2 into their places: q4's top and low limbs and q8's low
+     limb saved */
+  t4 = rp[6 * k];
+  s8 = rp[8 * k];
+  {
+    mp_limb_t l4 = rp[4 * k];
+    gtc_tc5s_n (rp + 6 * k, rp + 2 * k, r->ip.p, r->im.p, c2.p, w,
+		(r->ip.neg == r->im.neg) | (r->ip.neg ? 0 : 4));
+    t2 = rp[4 * k];
+    rp[4 * k] = l4;
+  }
+  t6 = rp[8 * k];
+  rp[8 * k] = s8;
+  acc_limb (rp + 4 * k, 2 * n - 4 * k, t2);
+  acc_limb (rp + 6 * k, 2 * n - 6 * k, t4);
+  acc_limb (rp + 8 * k, 2 * n - 8 * k, t6);
+  /* q5 = (c1 - (S + d)/4)/5 at 5k, c1 - q5 at k; q7 = (c3 - (S - d)/8)/5
+     at 7k, c3 - q7 at 3k */
+  rtc5_qacc (rp, 2 * n, 5 * k, k, w, s, d, 1, 2, c1, r->m.p);
+  rtc5_qacc (rp, 2 * n, 7 * k, 3 * k, w, s, d, -1, 3, c3, r->m.p);
+}
+#else
+/* The quarters and eighths stored, the divisions by GMP's, q1 and q3
+   added as their two terms.  */
 GTC_INLINE void
 r2gtc_55_interp (mp_ptr rp, mp_size_t n, mp_size_t k, mp_size_t h, rrows5 *r,
 	     mp_ptr T)
@@ -1083,70 +1151,26 @@ r2gtc_55_interp (mp_ptr rp, mp_size_t n, mp_size_t k, mp_size_t h, rrows5 *r,
   /* q6 into its place: q4's top limb and q8's low limb saved */
   t4 = rp[6 * k];
   s8 = rp[8 * k];
-#if GTC_RTC5_Z5
-  {
-    /* q6 and q2 = C2 - q6 (both flags clear) in one pass, q2's top limb
-       over q4's low one, which is put back */
-    mp_limb_t l4 = rp[4 * k];
-    gtc_div5_add_sub_n (rp + 6 * k, c2.p, a2.p, w, !a2.neg, rp + 2 * k);
-    (void) q6;
-    t2 = rp[4 * k];
-    rp[4 * k] = l4;
-  }
-#else
   q6 = r2gtc_55_div5 (rp + 6 * k, c2, a2, -1, w);
   /* q2 = C2 - q6, both flags clear, into its place but its top limb */
   cy = GTC_SUB_N (rp + 2 * k, c2.p, q6.p, 2 * k);
   t2 = c2.p[2 * k] - q6.p[2 * k] - cy;
-#endif
   t6 = rp[8 * k];
   rp[8 * k] = s8;
-#if GTC_RTC5_Z6
-  int z6 = 2 * n > 9 * k + 1;
-  if (z6)
-    {
-      /* q5 and q7, each added into the result at 5k and 7k by its
-	 division's pass (all the result's terms are sums, so the order
-	 does not matter); the limbs above as acc does */
-      q5 = (sreg) { a1.p, c1.neg };
-      cy = gtc_div5_add_acc_n (a1.p, c1.p, a1.p, w, (c1.neg == a1.neg)
-			       | (q5.neg ? 4 : 0), rp + 5 * k);
-      acc_tail (rp + 5 * k, 2 * n - 5 * k, q5, w, cy);
-      q7 = (sreg) { a3.p, c3.neg };
-      cy = gtc_div5_add_acc_n (a3.p, c3.p, a3.p, w, (c3.neg == a3.neg)
-			       | (q7.neg ? 4 : 0), rp + 7 * k);
-      acc_tail (rp + 7 * k, 2 * n - 7 * k, q7, w, cy);
-    }
-  else
-#endif
-    {
-      q5 = r2gtc_55_div5 (a1.p, c1, a1, -1, w);
-      q7 = r2gtc_55_div5 (a3.p, c3, a3, -1, w);
-    }
+  q5 = r2gtc_55_div5 (a1.p, c1, a1, -1, w);
+  q7 = r2gtc_55_div5 (a3.p, c3, a3, -1, w);
 
   acc_limb (rp + 4 * k, 2 * n - 4 * k, t2);
   acc_limb (rp + 6 * k, 2 * n - 6 * k, t4);
   acc_limb (rp + 8 * k, 2 * n - 8 * k, t6);
-#ifdef GTC_ACC_ASM
-  acc3 (rp + k, 2 * n - k, c1, (sreg) { q5.p, !q5.neg }, w);
-  acc3 (rp + 3 * k, 2 * n - 3 * k, c3, (sreg) { q7.p, !q7.neg }, w);
-#else
   acc (rp + k, 2 * n - k, c1, w);
   acc (rp + k, 2 * n - k, (sreg) { q5.p, !q5.neg }, w);
   acc (rp + 3 * k, 2 * n - 3 * k, c3, w);
   acc (rp + 3 * k, 2 * n - 3 * k, (sreg) { q7.p, !q7.neg }, w);
-#endif
-#if GTC_RTC5_Z6
-  if (z6)
-    ;				/* added by the divisions */
-  else
-#endif
-    {
-      acc (rp + 5 * k, 2 * n - 5 * k, q5, w);
-      acc (rp + 7 * k, 2 * n - 7 * k, q7, w);
-    }
-  (void) a0;
+  acc (rp + 5 * k, 2 * n - 5 * k, q5, w);
+  acc (rp + 7 * k, 2 * n - 7 * k, q7, w);
 }
+#endif
 
 /* One level of the Toom-Cook-5 style reduction to Gaussian
    multiplication of paper II, Section 4.6, with its rational point (1,1)

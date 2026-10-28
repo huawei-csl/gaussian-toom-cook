@@ -23,6 +23,23 @@ def lab(stem):
     return f".L{stem}{label_no[0]}"
 
 
+# Set, the kernels shift by mov, shl, shr and or (the flags are dead
+# there) instead of shrd, which is several micro-ops on the Zen and one on
+# the Intel cores.
+FLAGFREE_SHR = [False]
+
+
+def shr_pair(s, hi, lo, tmp):
+    """lo = (lo >> s) | (hi << (64 - s)), as shrd $s, hi, lo."""
+    if FLAGFREE_SHR[0]:
+        emit(f"\tmov\t{hi}, {tmp}")
+        emit(f"\tshl\t${64 - s}, {tmp}")
+        emit(f"\tshr\t${s}, {lo}")
+        emit(f"\tor\t{tmp}, {lo}")
+    else:
+        emit(f"\tshrd\t${s}, {hi}, {lo}")
+
+
 def dual_pass(pr, qr, count_slot, sub_p=False, sub_q=False, zero=False):
     """One pass over count limbs (count in the io slot count_slot):
        P: [pr.dst + j] = [pr.a + j] + [pr.b + j]   (CF chain)
@@ -103,10 +120,42 @@ def split_count(src_reg, slot):
     emit(f"\tmov\t%rax, {8 * slot + 16}(%r15)")
 
 
-def prologue(name):
+_trees = {}
+
+
+def mode_dispatch(reg, table):
+    """The entry of a kernel's mode copies on reg's low bits (a 32-bit
+    register, already masked): a tree of test and jnz, the highest bit
+    first, put in by mode_table once the copies' labels are known."""
+    _trees[table] = (len(out), reg)
+    out.append(None)
+
+
+def mode_table(table, entries):
+    """mode_dispatch's tree for table, entries[m] the copy of mode m."""
+    at, reg = _trees.pop(table)
+    nb = len(entries).bit_length() - 1
+    assert len(entries) == 1 << nb
+    tree = []
+
+    def rec(bit, base):
+        if bit < 0:
+            tree.append(f"\tjmp\t{entries[base]}")
+            return
+        hi = lab("td")
+        tree.append(f"\ttest\t${1 << bit}, {reg}")
+        tree.append(f"\tjnz\t{hi}")
+        rec(bit - 1, base)
+        tree.append(f"{hi}:")
+        rec(bit - 1, base | 1 << bit)
+    rec(nb - 1, 0)
+    out[at:at + 1] = tree
+
+
+def prologue(name, align=5):
     emit(f"\t.globl\t{name}")
     emit(f"\t.type\t{name}, @function")
-    emit("\t.p2align\t5")
+    emit(f"\t.p2align\t{align}")
     emit(f"{name}:")
     for r in ["rbx", "rbp", "r12", "r13", "r14", "r15"]:
         emit(f"\tpush\t%{r}")
@@ -806,7 +855,7 @@ def k2_recomp():
     emit(f"\t.size\t{name}, .-{name}")
 
 
-def rsh1add3(name="gtc_rsh1add3_n", sh=1):
+def rsh1add3():
     """mp_limb_t gtc_rsh1add3_n (mp_ptr rp, mp_srcptr ap, mp_srcptr bp,
                                  mp_srcptr cp, mp_size_t n, unsigned comp)
 
@@ -827,9 +876,8 @@ def rsh1add3(name="gtc_rsh1add3_n", sh=1):
     restore (2.06 cycles a limb without it, 2.00 with).  The loop ends on a compare of rp with its
     end, where the flags are saved, so that no register counts.  The first group, of n mod 8 sums (or 8),
     is a copy of the sums entered part-way, which then jumps into the
-    shifts part-way; the loop's groups run straight through.  With sh > 1
-    the sum is shifted by sh bits instead (gtc_rsh2add3_n,
-    gtc_rsh3add3_n)."""
+    shifts part-way; the loop's groups run straight through."""
+    name = "gtc_rsh1add3_n"
     prologue(name)
     R = ["%r11", "%rbx", "%rbp", "%r12", "%r13", "%r14", "%r15", "%r9",
          "%rcx"]
@@ -895,7 +943,7 @@ def rsh1add3(name="gtc_rsh1add3_n", sh=1):
         sums(es)
         for u in range(8):
             emit(f"{eh[u]}:")
-            emit(f"\tshrd\t${sh}, {R[u + 1]}, {R[u]}")
+            emit(f"\tshrd\t$1, {R[u + 1]}, {R[u]}")
             emit(f"\tmov\t{R[u]}, {8 * (u - 1)}(%rdi)")
         emit(f"{hend}:")
         emit(f"\tmov\t{R[8]}, {R[0]}")
@@ -904,7 +952,7 @@ def rsh1add3(name="gtc_rsh1add3_n", sh=1):
         emit("\tcmp\t-16(%rsp), %rdi\t\t/* the flags are saved */")
         emit(f"\tjne\t{loop}")
         # the last sum, at n - 1: shifted down arithmetically
-        emit(f"\tsar\t${sh}, {R[0]}")
+        emit(f"\tsar\t$1, {R[0]}")
         emit(f"\tmov\t{R[0]}, -8(%rdi)")
         emit(f"\tjmp\t{last}")
         emit("\t.p2align\t2")
@@ -919,7 +967,7 @@ def rsh1add3(name="gtc_rsh1add3_n", sh=1):
     epilogue(name)
 
 
-def rsh1add3_flagless(name="gtc_rsh1add3_n", sh=1):
+def rsh1add3_flagless():
     """The same contract as rsh1add3, for the Zen: shrd is several
     micro-ops there (reciprocal throughput 1.5, uops.info), so the shift is
     shrx, shlx and lea, which leave the flags alone, and the two chains run
@@ -931,8 +979,8 @@ def rsh1add3_flagless(name="gtc_rsh1add3_n", sh=1):
     part-way through the first group by a jump table, the sums rotating
     through four registers.  Per limb: three loads, a store, two flag adds
     (ALU0-2), shrx and shlx (ALU1-2), lea (any ALU): about 1.33 cycles
-    from the three AGUs and the three flag-capable ALUs.  With sh > 1
-    shifted by sh bits."""
+    from the three AGUs and the three flag-capable ALUs."""
+    name = "gtc_rsh1add3_n"
     R = ["%rax", "%rbx", "%r8", "%r9"]
     T1, T2 = "%r11", "%r14"
     emit(f"\t.globl\t{name}")
@@ -942,8 +990,8 @@ def rsh1add3_flagless(name="gtc_rsh1add3_n", sh=1):
     for r in ["rbx", "r12", "r13", "r14"]:
         emit(f"\tpush\t%{r}")
     emit("\tmov\t%rcx, %r10\t\t/* c */")
-    emit(f"\tmov\t${sh}, %r12d")
-    emit(f"\tmov\t${64 - sh}, %r13d")
+    emit("\tmov\t$1, %r12d")
+    emit("\tmov\t$63, %r13d")
     emit("\tlea\t2(%r8), %rax")
     emit("\tshr\t$2, %rax")
     emit("\tshl\t$2, %rax\t\t/* 4 g, g = ceil((n - 1) / 4) groups */")
@@ -1005,7 +1053,7 @@ def rsh1add3_flagless(name="gtc_rsh1add3_n", sh=1):
         emit(f"\tjrcxz\t{done}")
         emit(f"\tjmp\t{L[0]}")
         emit(f"{done}:")
-        emit(f"\tsar\t${sh}, {R[3]}")
+        emit(f"\tsar\t$1, {R[3]}")
         emit(f"\tmov\t{R[3]}, -8(%rdi)")
         emit(f"\tjmp\t{out_}")
         emit("\t.p2align\t2")
@@ -1013,7 +1061,7 @@ def rsh1add3_flagless(name="gtc_rsh1add3_n", sh=1):
         for s_ in stubs:
             emit(f"\t.long\t{s_} - {table}")
     emit(f"{done1}:")
-    emit(f"\tsar\t${sh}, %rbx")
+    emit("\tsar\t$1, %rbx")
     emit("\tmov\t%rbx, -8(%rdi)")
     emit(f"{out_}:")
     emit("\txor\t%eax, %eax")
@@ -1075,12 +1123,12 @@ def aors_n(name, sub):
 
 
 
-def div15_lsh(BLK):
+def div15_lsh(neg=False):
     """mp_limb_t gtc_div15_lsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
                                   mp_srcptr zp, mp_size_t n, unsigned signs)
 
     {rp, n} = (x + 4 y + 8 z) / 15 modulo B^n, the division exact; signs
-    & 1 (& 2) subtracts 4 y (8 z) instead.  Blocks of BLK limbs, the
+    & 1 (& 2) subtracts 4 y (8 z) instead.  Blocks of 16 limbs, the
     first one partial (entered through a table, the pointers moved back):
     the sums along CF and OF into rp, the shifted limbs made by shrx and lea
     (which leave the flags alone), the flags parked; then GMP's
@@ -1092,25 +1140,48 @@ def div15_lsh(BLK):
     (setc, seto, movzbl and neg twice; adcx and adox of the masks).  The
     sums kept in registers instead, as div5_lsh_reg, were slower: four
     registers are left for them, and blocks of 4 limbs pay for the loop
-    and the parking."""
-    name = "gtc_div15_lsh_n"
+    and the parking.
+
+    With neg, gtc_div15n_lsh_n: {rp, n} = -(x + 4 y + 8 z) / 15, the
+    division along two chains of one cycle a limb: R = R B + s m (m =
+    (B-1)/15) is -s/15, the column sums of s m (mulx, adcx of the high
+    limb before) along CF and R along OF (adox); both carries go into the
+    block's last high limb (at most m + 1), from which, with R's last
+    limb, the next block starts.  The loop ends on rp reaching its end,
+    kept on the stack.  Returns R's last limb."""
+    name = "gtc_div15n_lsh_n" if neg else "gtc_div15_lsh_n"
+    BLK = 16
     LG = BLK.bit_length() - 1
     emit(f"/* {name}: see the header.  */")
     prologue(name)
-    emit("\tsub\t$8, %rsp\t\t/* the entry of the next block's division */")
+    if neg:
+        # (%rsp) the entry of the next block's division, 8(%rsp) rp's end
+        emit("\tsub\t$16, %rsp")
+    else:
+        emit("\tsub\t$8, %rsp\t\t/* the entry of the next block's division */")
     emit("\tmov\t%rdx, %r10")
     emit("\tmov\t%rcx, %r11")
     zero, end = lab("qz"), lab("qe")
-    emit(f"\tlea\t{BLK - 1}(%r8), %rcx")
-    emit(f"\tshr\t${LG}, %rcx\t\t/* blocks, the first one partial */")
-    emit("\ttest\t%rcx, %rcx")
-    emit(f"\tjz\t{zero}")
+    if neg:
+        emit("\ttest\t%r8, %r8")
+        emit(f"\tjz\t{zero}")
+        emit("\tlea\t(%rdi,%r8,8), %rax")
+        emit("\tmov\t%rax, 8(%rsp)\t\t/* rp's end */")
+    else:
+        emit(f"\tlea\t{BLK - 1}(%r8), %rcx")
+        emit(f"\tshr\t${LG}, %rcx\t\t/* blocks, the first one partial */")
+        emit("\ttest\t%rcx, %rcx")
+        emit(f"\tjz\t{zero}")
     emit("\tneg\t%r8")
     emit(f"\tand\t${BLK - 1}, %r8d\t\t/* the limbs the first block skips */")
     emit("\tlea\t(,%r8,8), %rax")
     for p_ in ("%rdi", "%rsi", "%r10", "%r11"):
         emit(f"\tsub\t%rax, {p_}")
-    emit("\txor\t%r12d, %r12d\t\t/* h */")
+    if neg:
+        emit("\txor\t%r12d, %r12d\t\t/* R, the running sum */")
+        emit("\txor\t%ecx, %ecx\t\t/* the high limb before: 0 */")
+    else:
+        emit("\txor\t%r12d, %r12d\t\t/* h */")
     for r in ("%r13d", "%r14d", "%r15d", "%ebp"):
         emit(f"\txor\t{r}, {r}\t\t/* the limbs below y and z: 0 */")
     variants = ((0, 0), (0, 1), (1, 0), (1, 1))
@@ -1174,18 +1245,33 @@ def div15_lsh(BLK):
             emit("\tsbb\t%r9, %r9")
             emit("\tmovabs\t$0x1111111111111111, %rdx\t/* (B-1)/15 */")
 
-        def divs(entries, keep_entry=False):
+        def divs(entries):
+            if neg and not entries:
+                emit("\ttest\t%r12, %r12\t\t/* CF = OF = 0 */")
+            HH = ("%r8", "%rcx")
             for u in range(BLK):
                 o = 8 * u
                 if entries:
                     emit(f"{eb[u]}:")
+                if neg:
+                    # -q: R = R B + s m, the column sums of s m along CF,
+                    # R along OF; the high limbs alternate, the last in rcx
+                    hc, hp = HH[u % 2], HH[(u + 1) % 2]
+                    emit(f"\tmulx\t{o}(%rdi), %rax, {hc}")
+                    emit(f"\tadcx\t{hp}, %rax")
+                    emit("\tadox\t%rax, %r12")
+                    emit(f"\tmov\t%r12, {o}(%rdi)")
+                    continue
                 emit(f"\tmulx\t{o}(%rdi), %rax, %r8")
                 emit("\tsub\t%rax, %r12")
                 emit(f"\tmov\t%r12, {o}(%rdi)")
                 emit("\tsbb\t%r8, %r12")
-            if keep_entry:
-                emit(f"\tlea\t{eb[0]}(%rip), %rax")
-                emit("\tmov\t%rax, (%rsp)")
+            if neg:
+                # both carries into the last high limb, which leaves CF =
+                # OF = 0
+                emit("\tmov\t$0, %eax")
+                emit("\tadcx\t%rax, %rcx")
+                emit("\tadox\t%rax, %rcx")
             for p_ in ("%rdi", "%rsi", "%r10", "%r11"):
                 emit(f"\tlea\t{8 * BLK}({p_}), {p_}")
 
@@ -1198,21 +1284,33 @@ def div15_lsh(BLK):
             emit("\tmov\t$62, %edx")
             emit("\tmov\t$61, %r9d")
 
+        def last(jz):
+            # the loop's end: the block count, or (neg, where rcx holds a
+            # high limb) rp against its end
+            if neg:
+                emit("\tcmp\t8(%rsp), %rdi")
+                emit(f"\t{'je' if jz else 'jne'}\t{end if jz else steady}")
+            else:
+                emit("\tdec\t%rcx")
+                emit(f"\t{'jz' if jz else 'jnz'}\t{end if jz else steady}")
+
         # the first, partial block through the tables, then a loop
         # with neither
         steady = lab("qst")
         sums(True)
+        if neg:
+            # CF = OF = 0, and the high limb before a first block entered
+            # at an odd limb 0
+            emit("\txor\t%r8d, %r8d")
         emit("\tjmp\t*(%rsp)")
         divs(True)
-        emit("\tdec\t%rcx")
-        emit(f"\tjz\t{end}")
+        last(True)
         emit("\t.p2align\t4")
         emit(f"{steady}:")
         restore()
         sums(False)
         divs(False)
-        emit("\tdec\t%rcx")
-        emit(f"\tjnz\t{steady}")
+        last(False)
         emit(f"\tjmp\t{end}")
         for t_, es in ((ta, ea), (tb, eb)):
             emit("\t.p2align\t2")
@@ -1223,7 +1321,7 @@ def div15_lsh(BLK):
     emit("\txor\t%r12d, %r12d")
     emit(f"{end}:")
     emit("\tmov\t%r12, %rax")
-    emit("\tadd\t$8, %rsp")
+    emit(f"\tadd\t${16 if neg else 8}, %rsp")
     epilogue(name)
 
 
@@ -1314,18 +1412,23 @@ def div5_lsh_reg():
 
 
 
-def div5_rlsh_shld():
-    """mp_limb_t gtc_div5_rlsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
-                                  mp_size_t n, unsigned rsb)
+def div5n_rlsh():
+    """mp_limb_t gtc_div5n_rlsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
+                                   mp_size_t n, unsigned sub)
 
-    {rp, n} = (x + 4 y) / 5 modulo B^n, the division exact; rsb & 1:
-    (4 y - x) / 5.  div5_lsh_reg with the limbs of 4 y made by shld $2
-    before the chain's CF is restored (shld writes the flags), x then
-    added (adc) or subtracted from them (sbb) as a memory operand: one
-    µop a limb fewer.  The loops end on rp reaching its end, kept in a
-    register (r14 for the n mod 4 limbs, r15 for the blocks).  SHLD is
-    slow on the Zen (4 µops): for the Intel cores."""
-    name = "gtc_div5_rlsh_n"
+    {rp, n} = -(x + 4 y) / 5, or (x - 4 y) / 5 with sub & 1, modulo B^n,
+    the division exact; n >= 0, rp may equal xp.  The n mod 4 limbs one
+    at a time, then blocks of 4: the limbs of 4 y made by shld $2 before
+    the chain's CF is restored (shld writes the flags), x then added (adc)
+    or subtracted from them (sbb) as a memory operand.  The division along
+    two chains of one cycle a limb: R = R B + s m (m = (B-1)/5) is -s/5,
+    the column sums (adcx) along CF, R along OF (adox); the high limbs
+    alternate in rbp and r8 over the n mod 4 limbs, in r14 (their end,
+    dead by then) and r8 over the blocks, and both carries go into the
+    last.  The loops end on rp reaching its end, kept in r14 for the n mod
+    4 limbs, r15 for the blocks.  Returns R's last limb.  shld is 4 µops
+    on the Zen: for the Intel cores."""
+    name = "gtc_div5n_rlsh_n"
     emit(f"/* {name}: see the header.  */")
     prologue(name)
     emit("	mov	%rdx, %r10		/* yp */")
@@ -1333,7 +1436,7 @@ def div5_rlsh_shld():
     emit("	and\t$3, %ecx")
     emit("	lea\t(%rdi,%rcx,8), %r14\t/* the end of the n mod 4 limbs */")
     emit("	movabs\t$0x3333333333333333, %rdx\t/* (B-1)/5 */")
-    emit("	xor\t%r12d, %r12d\t\t/* h */")
+    emit("	xor\t%r12d, %r12d\t\t/* R */")
     emit("	xor\t%r13d, %r13d\t\t/* the limb below y: 0 */")
     emit("	xor\t%r9d, %r9d\t\t/* the sum's chain, parked: 0 or ~0 */")
     end = lab("r5e")
@@ -1345,6 +1448,8 @@ def div5_rlsh_shld():
         op = "sbb" if sub else "adc"
         one, four, l4 = lab("r5o"), lab("r5f"), lab("r5g")
         emit(f"{l}:")
+        # after the test of sub, which came in r8
+        emit("\txor\t%r8d, %r8d\t\t/* the high limb before: 0 */")
         emit("\tcmp\t%r14, %rdi")
         emit(f"\tje\t{l4}")
         emit(f"{one}:")
@@ -1355,10 +1460,14 @@ def div5_rlsh_shld():
         emit("\tneg\t%r9")
         emit(f"\t{op}\t(%rsi), %rbx")
         emit("\tsbb\t%r9, %r9")
-        emit("\tmulx\t%rbx, %rax, %r8")
-        emit("\tsub\t%rax, %r12")
+        emit("\txor\t%eax, %eax\t\t/* CF = OF = 0 */")
+        emit("\tmulx\t%rbx, %rbx, %rbp")
+        emit("\tadcx\t%r8, %rbx")
+        emit("\tadox\t%rbx, %r12\t\t/* -q */")
         emit("\tmov\t%r12, (%rdi)")
-        emit("\tsbb\t%r8, %r12")
+        emit("\tadcx\t%rax, %rbp\t\t/* both carries in */")
+        emit("\tadox\t%rax, %rbp")
+        emit("\tmov\t%rbp, %r8")
         for p_ in ("%rsi", "%r10", "%rdi"):
             emit(f"\tlea\t8({p_}), {p_}")
         emit("\tcmp\t%r14, %rdi")
@@ -1378,89 +1487,19 @@ def div5_rlsh_shld():
         for u in range(4):
             emit(f"\t{op}\t{8 * u}(%rsi), {S[u]}")
         emit("\tsbb\t%r9, %r9")
+        emit("\txor\t%eax, %eax\t\t/* CF = OF = 0 */")
         for u in range(4):
-            emit(f"\tmulx\t{S[u]}, %rax, %r8")
-            emit("\tsub\t%rax, %r12")
+            hc, hp = ("%r14", "%r8") if u % 2 == 0 else ("%r8", "%r14")
+            emit(f"\tmulx\t{S[u]}, {S[u]}, {hc}")
+            emit(f"\tadcx\t{hp}, {S[u]}")
+            emit(f"\tadox\t{S[u]}, %r12\t\t/* -q */")
             emit(f"\tmov\t%r12, {8 * u}(%rdi)")
-            emit("\tsbb\t%r8, %r12")
+        emit("\tadcx\t%rax, %r8\t\t/* both carries in */")
+        emit("\tadox\t%rax, %r8")
         for p_ in ("%rsi", "%r10", "%rdi"):
             emit(f"\tlea\t32({p_}), {p_}")
         emit("\tcmp\t%r15, %rdi")
         emit(f"\tjne\t{four}")
-        emit(f"\tjmp\t{end}")
-    emit(f"{end}:")
-    emit("\tmov\t%r12, %rax")
-    epilogue(name)
-
-def div5_add_reg():
-    """mp_limb_t gtc_div5_add_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
-                                 mp_size_t n, unsigned mode)
-
-    {rp, n} = (x + y) / 5 modulo B^n, exact; mode 1: (x - y) / 5, mode 2:
-    (y - x) / 5.  div5_lsh_reg without the shift of y: blocks of 4 limbs
-    summed along CF (adc, or sbb with x or y first) into four registers
-    with the second operand from memory, the chain parked by sbb and
-    restored by neg, then GMP's mpn_bdiv_dbm1c step with (B-1)/5 over the
-    four.  The n mod 4 limbs go first, one at a time.  Returns the final
-    h.  n >= 0; rp may equal xp or yp.  The Gaussian Toom-5's q5, q6, q7
-    from x already divided by 4 (gtc.c, reg_div5_add)."""
-    name = "gtc_div5_add_n"
-    emit(f"/* {name}: see the header.  */")
-    prologue(name)
-    emit("\tmov\t%rcx, %r13")
-    emit("\tshr\t$2, %r13\t\t/* blocks of 4 */")
-    emit("\tmov\t%rcx, %r15")
-    emit("\tand\t$3, %r15d\t\t/* the rest */")
-    emit("\tmovabs\t$0x3333333333333333, %r10\t/* (B-1)/5 */")
-    emit("\txor\t%r12d, %r12d\t\t/* h */")
-    emit("\txor\t%r9d, %r9d\t\t/* the sum's chain, parked: 0 or ~0 */")
-    emit("\tmov\t%rdx, %r14\t\t/* yp */")
-    emit("\tmov\t%r10, %rdx")
-    end = lab("a5e")
-    paths = {0: lab("a5a"), 1: lab("a5s"), 2: lab("a5r")}
-    emit("\tcmp\t$1, %r8d")
-    emit(f"\tje\t{paths[1]}")
-    emit(f"\tja\t{paths[2]}")
-    S = ["%rbx", "%rbp", "%r11", "%rcx"]
-    for mode, l in paths.items():
-        op = "adc" if mode == 0 else "sbb"
-        first, second = ("%r14", "%rsi") if mode == 2 else ("%rsi", "%r14")
-        one, four, l4 = lab("a5o"), lab("a5f"), lab("a5g")
-        emit(f"{l}:")
-        emit("\ttest\t%r15, %r15")
-        emit(f"\tje\t{l4}")
-        emit(f"{one}:")
-        emit("\tneg\t%r9")
-        emit(f"\tmov\t({first}), %rbx")
-        emit(f"\t{op}\t({second}), %rbx")
-        emit("\tsbb\t%r9, %r9")
-        emit("\tmulx\t%rbx, %rax, %r8")
-        emit("\tsub\t%rax, %r12")
-        emit("\tmov\t%r12, (%rdi)")
-        emit("\tsbb\t%r8, %r12")
-        for p_ in ("%rsi", "%r14", "%rdi"):
-            emit(f"\tlea\t8({p_}), {p_}")
-        emit("\tdec\t%r15")
-        emit(f"\tjnz\t{one}")
-        emit(f"{l4}:")
-        emit("\ttest\t%r13, %r13")
-        emit(f"\tje\t{end}")
-        emit("\t.p2align\t4")
-        emit(f"{four}:")
-        emit("\tneg\t%r9")
-        for u in range(4):
-            emit(f"\tmov\t{8 * u}({first}), {S[u]}")
-            emit(f"\t{op}\t{8 * u}({second}), {S[u]}")
-        emit("\tsbb\t%r9, %r9")
-        for u in range(4):
-            emit(f"\tmulx\t{S[u]}, %rax, %r8")
-            emit("\tsub\t%rax, %r12")
-            emit(f"\tmov\t%r12, {8 * u}(%rdi)")
-            emit("\tsbb\t%r8, %r12")
-        for p_ in ("%rsi", "%r14", "%rdi"):
-            emit(f"\tlea\t32({p_}), {p_}")
-        emit("\tdec\t%r13")
-        emit(f"\tjnz\t{four}")
         emit(f"\tjmp\t{end}")
     emit(f"{end}:")
     emit("\tmov\t%r12, %rax")
@@ -1678,123 +1717,6 @@ def t5r():
     emit(f"\t.size\t{name}, .-{name}")
 
 
-def div5_add_fused(kind):
-    """mp_limb_t gtc_div5_add_sub_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
-                                     mp_size_t n, unsigned mode, mp_ptr sp)
-
-    gtc_div5_add_n's {rp, n} = q (mode & 3 as there), and in the same pass
-    {sp, n} = z - q modulo B^n, z = y with mode & 4, else x: a third
-    chain per block of 4 (sbb of the quotient limbs just stored), parked
-    in r10.  The block count in r13, the rest's on the stack, sp in r15.
-    Returns the final h.  n >= 0; rp and sp overlap neither xp nor yp nor
-    each other.  The Toom-5s' q6 and q2 = c2 - q6 (gtc.c, tc5_q6 and
-    r2gtc_55_interp)."""
-    if kind == "acc":
-        # gtc_div5_add_acc_n (rp, xp, yp, n, mode, ap): q into rp, and
-        # {ap, n} += q (mode & 4: -= q) along the third chain; returns
-        # that chain's carry (or borrow), 0 or 1.  The Toom-5 style
-        # reduction's q5 and q7 (gtc.c, r2gtc_55_interp).
-        pass
-    name = "gtc_div5_add_sub_n" if kind == "sub" else "gtc_div5_add_acc_n"
-    emit(f"/* {name}: see the header.  */")
-    prologue(name)
-    emit("\tsub\t$8, %rsp\t\t/* (%rsp): the rest */")
-    emit("\tmov\t%rcx, %r13")
-    emit("\tshr\t$2, %r13\t\t/* blocks of 4 */")
-    emit("\tand\t$3, %ecx")
-    emit("\tmov\t%rcx, (%rsp)")
-    emit("\tmov\t%r9, %r15\t\t/* sp */")
-    emit("\txor\t%r12d, %r12d\t\t/* h */")
-    emit("\txor\t%r9d, %r9d\t\t/* the sum's chain, parked: 0 or ~0 */")
-    emit("\txor\t%r10d, %r10d\t\t/* z - q's chain, parked */")
-    emit("\tmov\t%rdx, %r14\t\t/* yp */")
-    emit("\tmovabs\t$0x3333333333333333, %rdx\t/* (B-1)/5 */")
-    end = lab("a5se")
-    paths = {(m, zy): lab("a5sp") for m in (0, 1, 2) for zy in (0, 1)}
-    emit("\tmov\t%r8d, %eax")
-    emit("\tand\t$3, %eax")
-    emit("\ttest\t$4, %r8b")
-    zy1 = lab("a5sz")
-    emit(f"\tjnz\t{zy1}")
-    for zy in (0, 1):
-        if zy:
-            emit(f"{zy1}:")
-        emit("\tcmp\t$1, %eax")
-        emit(f"\tje\t{paths[(1, zy)]}")
-        emit(f"\tja\t{paths[(2, zy)]}")
-        emit(f"\tjmp\t{paths[(0, zy)]}")
-    S = ["%rbx", "%rbp", "%r11", "%rcx"]
-    for (mode, zy), l in paths.items():
-        op = "adc" if mode == 0 else "sbb"
-        first, second = ("%r14", "%rsi") if mode == 2 else ("%rsi", "%r14")
-        z = "%r14" if zy else "%rsi"
-        aop = "sbb" if zy else "adc"
-        one, four, l4 = lab("a5so"), lab("a5sf"), lab("a5sg")
-        emit(f"{l}:")
-        emit("\tcmpq\t$0, (%rsp)")
-        emit(f"\tje\t{l4}")
-        emit(f"{one}:")
-        emit("\tneg\t%r9")
-        emit(f"\tmov\t({first}), %rbx")
-        emit(f"\t{op}\t({second}), %rbx")
-        emit("\tsbb\t%r9, %r9")
-        emit("\tmulx\t%rbx, %rax, %r8")
-        emit("\tsub\t%rax, %r12")
-        emit("\tmov\t%r12, (%rdi)")
-        emit("\tsbb\t%r8, %r12")
-        emit("\tneg\t%r10")
-        if kind == "sub":
-            emit(f"\tmov\t({z}), %rbx")
-            emit("\tsbb\t(%rdi), %rbx")
-        else:
-            emit("\tmov\t(%r15), %rbx")
-            emit(f"\t{aop}\t(%rdi), %rbx")
-        emit("\tmov\t%rbx, (%r15)")
-        emit("\tsbb\t%r10, %r10")
-        for p_ in ("%rsi", "%r14", "%rdi", "%r15"):
-            emit(f"\tlea\t8({p_}), {p_}")
-        emit("\tsubq\t$1, (%rsp)")
-        emit(f"\tjnz\t{one}")
-        emit(f"{l4}:")
-        emit("\ttest\t%r13, %r13")
-        emit(f"\tje\t{end}")
-        emit("\t.p2align\t4")
-        emit(f"{four}:")
-        emit("\tneg\t%r9")
-        for u in range(4):
-            emit(f"\tmov\t{8 * u}({first}), {S[u]}")
-            emit(f"\t{op}\t{8 * u}({second}), {S[u]}")
-        emit("\tsbb\t%r9, %r9")
-        for u in range(4):
-            emit(f"\tmulx\t{S[u]}, %rax, %r8")
-            emit("\tsub\t%rax, %r12")
-            emit(f"\tmov\t%r12, {8 * u}(%rdi)")
-            emit("\tsbb\t%r8, %r12")
-        emit("\tneg\t%r10")
-        for u in range(4):
-            if kind == "sub":
-                emit(f"\tmov\t{8 * u}({z}), {S[u]}")
-                emit(f"\tsbb\t{8 * u}(%rdi), {S[u]}")
-            else:
-                emit(f"\tmov\t{8 * u}(%r15), {S[u]}")
-                emit(f"\t{aop}\t{8 * u}(%rdi), {S[u]}")
-            emit(f"\tmov\t{S[u]}, {8 * u}(%r15)")
-        emit("\tsbb\t%r10, %r10")
-        for p_ in ("%rsi", "%r14", "%rdi", "%r15"):
-            emit(f"\tlea\t32({p_}), {p_}")
-        emit("\tdec\t%r13")
-        emit(f"\tjnz\t{four}")
-        emit(f"\tjmp\t{end}")
-    emit(f"{end}:")
-    if kind == "sub":
-        emit("\tmov\t%r12, %rax")
-    else:
-        emit("\tmov\t%r10, %rax")
-        emit("\tneg\t%rax\t\t\t/* the third chain's carry */")
-    emit("\tadd\t$8, %rsp")
-    epilogue(name)
-
-
 def aorslsh():
     """mp_limb_t gtc_aorslsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
                                 mp_size_t n, unsigned s, unsigned mode)
@@ -1900,6 +1822,1340 @@ def aorslsh():
     emit(f"\t.size\t{name}, .-{name}")
 
 
+def aors2c():
+    """mp_limb_t gtc_aors2c_n (mp_ptr d, mp_ptr zp, mp_srcptr xp,
+                               mp_srcptr yp, mp_size_t n, unsigned signs)
+
+    {d, n} = x +- y along CF and then {zp, n} = d +- z along OF in the same
+    pass, d's limb still in its register (signs & 1, & 2 subtract y, z, as
+    complements with a carry-in of 1); returns CF + 2 OF.  n >= 0; d may
+    equal xp or yp."""
+    def step(off, nv, nw):
+        o = 8 * off
+        emit(f"\tmov\t{o}(%rdx), %rax")
+        if nv:
+            emit(f"\tmov\t{o}(%r10), %r9")
+            emit("\tnot\t%r9")
+            emit("\tadcx\t%r9, %rax")
+        else:
+            emit(f"\tadcx\t{o}(%r10), %rax")
+        emit(f"\tmov\t%rax, {o}(%rdi)")
+        if nw:
+            emit(f"\tmov\t{o}(%rsi), %r9")
+            emit("\tnot\t%r9")
+            emit("\tadox\t%r9, %rax")
+        else:
+            emit(f"\tadox\t{o}(%rsi), %rax")
+        emit(f"\tmov\t%rax, {o}(%rsi)")
+    chains("gtc_aors2c_n",
+           "{d, n} = x +- y (CF), {zp, n} = d +- z (OF); returns CF + 2 OF.\n"
+           "   See the header.",
+           ["%rdi", "%rsi", "%rdx", "%r10"], step,
+           [(0, 0), (0, 1), (1, 0), (1, 1)], zero_aors2)
+    emit("\tlea\t(%rax,%rcx,2), %eax")
+    emit("\tret")
+    emit("\t.size\tgtc_aors2c_n, .-gtc_aors2c_n")
+
+
+def tc5q():
+    """mp_limb_t gtc_tc5q_n (mp_ptr a1, mp_ptr a2, mp_srcptr xp,
+                            mp_srcptr yp, mp_srcptr cp, mp_size_t n,
+                            unsigned mode)
+
+    In one pass over n >= 1 limbs, all read as signed n-limb numbers:
+      t = (x + y mod B^n) >> s, arithmetic and exact, s = 2 + (mode >> 3
+          & 1), y subtracted with mode & 1;
+      q = (t + c) / 5 modulo B^n, exact, c subtracted with mode & 2;
+      {a1, n} += q and {a2, n} += c - q, c's sign as in q, both
+          subtracted instead with mode & 4.
+    q is never stored.  Returns the net carries out of a1 and a2 (what the
+    limbs above each change by, -2 to 2) as two 32-bit signed halves, a1's
+    low.  a1 and a2 overlap neither each other nor the operands.
+
+    Five carry chains: x +- y (CF; adc or sbb, y from memory), t +- c
+    (CF), a1 +- q (CF), and a2 +- c and a2 -+ q in one loop along CF and
+    OF (adcx, adox; c subtracted as its complement with a carry-in of 1).
+    The sums run one limb ahead of the rest (t needs the next one), in
+    blocks of 4 (the n - 1 mod 4 limbs first, in blocks of 1 and 2 by its
+    bits), each chain restored at its block's start and parked at its end:
+    the first in n's register (sbb, bt), the loop closed on x's end; the
+    others on the stack (CF alone: setnc, cmpb $1; CF and OF: seto and sbb
+    to a mask, cmpb $0x81 and adcx of the mask into 0).  t by shl, shr and
+    or (shrd is several micro-ops on the Zen), q by GMP's mpn_bdiv_dbm1c
+    step with (B-1)/5, each limb into the register its t was in.  Where q
+    is added (mode & 4 clear), the step makes ~q instead, carrying g = ~h
+    (~q = lo + g, the low half straight into t's register, and g' = ~q +
+    hi + carry: four µops a limb, the two registers trading places each
+    limb), so that a1 + q is a1 - ~q - 1 by sbb and a2 - q is a2 + ~q + 1
+    by adox: q needs no complement in any mode.  The last limb's t is the
+    last sum shifted arithmetically.  One copy per mode, entered through a
+    tree on its bits.  For the Zen."""
+    name = "gtc_tc5q_n"
+    emit(f"/* {name}: see the header.  */")
+    prologue(name, "GTC_TC5_FA")
+    A1, A2, X, Y, C, N = "%rdi", "%rsi", "%r10", "%rcx", "%r8", "%r9"
+    H, LO, HI = "%r11", "%rax", "%rbx"
+    R = ["%rbp", "%r12", "%r13", "%r14", "%r15"]
+    # stack: 1 - CF of chains 2 and 3 at 8 and 16 (chain 1 in n's
+    # register; 0 unused); the mask -CF4 at 24, OF5's byte at 32; n - 1 at
+    # 40, x's end at 48
+    P1, P2, P3, P4, P5, CNT, END, FRAME = 0, 8, 16, 24, 32, 40, 48, 56
+    MODE = FRAME + 56
+    emit(f"\tsub\t${FRAME}, %rsp")
+    emit(f"\tmov\t%rdx, {X}")
+    emit("\tmovabs\t$0x3333333333333333, %rdx\t/* (B-1)/5 */")
+    emit(f"\tmov\t{MODE}(%rsp), %eax")
+    emit("\tand\t$15, %eax")
+    table = lab("q5t")
+    mode_dispatch("%eax", table)
+    entries = []
+    end = lab("q5e")
+
+    def chain_restore(slot):
+        if slot == P1:
+            emit(f"\tbt\t$0, {N}\t\t/* CF back */")
+        else:
+            emit(f"\tcmpb\t$1, {slot}(%rsp)\t/* CF back */")
+
+    def chain_park(slot):
+        if slot == P1:
+            emit(f"\tsbb\t{N}, {N}\t\t/* -CF */")
+        else:
+            emit(f"\tsetnc\t{slot}(%rsp)\t/* 1 - CF */")
+
+    for mode in range(16):
+        ysub, csub, asub, sh = (mode & 1, mode >> 1 & 1, mode >> 2 & 1,
+                                2 + (mode >> 3 & 1))
+        nq = 1 - asub			# the registers hold ~q
+        ccmp = csub ^ asub		# c complemented on a2's CF chain
+        l = lab("q5m")
+        entries.append(l)
+        emit(f"{l}:")
+        emit(f"\tlea\t-1({N}), {N}")
+        emit(f"\tmov\t{N}, {CNT}(%rsp)")
+        emit(f"\tlea\t8({X},{N},8), {LO}")
+        emit(f"\tmov\t{LO}, {END}(%rsp)\t/* x's end */")
+        emit(f"\tmov\t({X}), {R[0]}")
+        emit(f"\t{'sub' if ysub else 'add'}\t({Y}), {R[0]}\t/* s0 */")
+        chain_park(P1)
+        emit(f"\tlea\t8({X}), {X}")
+        emit(f"\tlea\t8({Y}), {Y}")
+        emit(f"\tmovq\t$1, {P2}(%rsp)")
+        emit(f"\tmovq\t${1 - nq}, {P3}(%rsp)\t/* a1's borrow-in {nq} */")
+        emit(f"\tmovq\t${-ccmp}, {P4}(%rsp)\t/* -CF4 */")
+        emit(f"\tmovq\t${nq}, {P5}(%rsp)\t/* OF5 */")
+        emit(f"\tmov\t${-nq}, {H}\t\t/* h = 0{', as ~h' if nq else ''} */")
+
+        def rest(m):
+            """t in R[0..m-1]: + c, / 5, the accumulations."""
+            chain_restore(P2)
+            for u in range(m):
+                emit(f"\t{'sbb' if csub else 'adc'}\t{8 * u}({C}), {R[u]}")
+            chain_park(P2)
+            g, lo = H, (HI if nq else LO)
+            for u in range(m):
+                if nq:
+                    # the low half into t's register, the high one into
+                    # the register g' then takes
+                    emit(f"\tmulx\t{R[u]}, {R[u]}, {lo}")
+                    emit(f"\tadd\t{g}, {R[u]}\t\t/* ~q */")
+                    emit(f"\tadc\t{R[u]}, {lo}\t\t/* g' */")
+                    g, lo = lo, g
+                else:
+                    emit(f"\tmulx\t{R[u]}, {lo}, {HI}")
+                    emit(f"\tsub\t{lo}, {g}")
+                    emit(f"\tmov\t{g}, {R[u]}")
+                    emit(f"\tsbb\t{HI}, {g}")
+            if g != H:
+                emit(f"\tmov\t{g}, {H}")
+            chain_restore(P3)
+            for u in range(m):
+                emit(f"\tmov\t{8 * u}({A1}), {LO}")
+                emit(f"\tsbb\t{R[u]}, {LO}")
+                emit(f"\tmov\t{LO}, {8 * u}({A1})")
+            chain_park(P3)
+            emit(f"\tcmpb\t$0x81, {P5}(%rsp)\t/* OF back, CF = 1 */")
+            emit(f"\tmov\t$0, {LO}")
+            emit(f"\tadcx\t{P4}(%rsp), {LO}\t/* CF back */")
+            for u in range(m):
+                emit(f"\tmov\t{8 * u}({A2}), {LO}")
+                if ccmp:
+                    emit(f"\tmov\t{8 * u}({C}), {HI}")
+                    emit(f"\tnot\t{HI}")
+                    emit(f"\tadcx\t{HI}, {LO}")
+                else:
+                    emit(f"\tadcx\t{8 * u}({C}), {LO}")
+                emit(f"\tadox\t{R[u]}, {LO}")
+                emit(f"\tmov\t{LO}, {8 * u}({A2})")
+            emit(f"\tseto\t{P5}(%rsp)")
+            emit(f"\tsbb\t{HI}, {HI}")
+            emit(f"\tmov\t{HI}, {P4}(%rsp)\t/* -CF4 */")
+            for p_ in (C, A1, A2):
+                emit(f"\tlea\t{8 * m}({p_}), {p_}")
+
+        def block(m):
+            """The sums of the next m limbs into R[1..m], t of the m before
+            them into R[0..m-1] (R[0] the last sum before), the rest (which
+            leaves R[m] alone); the last sum back to R[0]."""
+            chain_restore(P1)
+            for u in range(m):
+                emit(f"\tmov\t{8 * u}({X}), {R[u + 1]}")
+                emit(f"\t{'sbb' if ysub else 'adc'}\t{8 * u}({Y}), {R[u + 1]}")
+            chain_park(P1)
+            for u in range(m):
+                shr_pair(sh, R[u + 1], R[u], LO)
+            for p_ in (X, Y):
+                emit(f"\tlea\t{8 * m}({p_}), {p_}")
+            rest(m)
+            emit(f"\tmov\t{R[m]}, {R[0]}")
+
+        for bit in (0, 1):
+            skip = lab("q5b")
+            emit(f"\ttestb\t${1 << bit}, {CNT}(%rsp)")
+            emit(f"\tjz\t{skip}")
+            block(1 << bit)
+            emit(f"{skip}:")
+        loop, ldone = lab("q5l"), lab("q5d")
+        emit(f"\tcmp\t{END}(%rsp), {X}")
+        emit(f"\tje\t{ldone}")
+        emit("\t.p2align\t4")
+        emit(f"{loop}:")
+        block(4)
+        emit(f"\tcmp\t{END}(%rsp), {X}")
+        emit(f"\tjne\t{loop}")
+        emit(f"{ldone}:")
+        # the last limb: the last sum shifted arithmetically
+        emit(f"\tsar\t${sh}, {R[0]}")
+        rest(1)
+        # the net carries: q's sign bit tq (R[0] its top limb, or ~ of it),
+        # c's tc; a1: (1 - b3) - tq adding (a1 - ~q - 1 = a1 + q - B^n),
+        # tq - b3 subtracting; a2: CF4 + OF5 less, for each of c and q as
+        # added, its sign bit, or 1 - it where complemented
+        emit(f"\tshr\t$63, {R[0]}")
+        if nq:
+            emit(f"\txor\t$1, {R[0]}\t\t/* tq */")
+        emit(f"\tmovzbl\t{P3}(%rsp), %eax\t/* 1 - b3 */")
+        if nq:
+            emit(f"\tsub\t{R[0]}, %rax")
+        else:
+            emit(f"\tlea\t-1(%rax,{R[0]}), %rax")
+        emit("\tmov\t%eax, %eax")
+        emit(f"\tmov\t-8({C}), {HI}")
+        emit(f"\tshr\t$63, {HI}\t\t/* tc */")
+        emit(f"\tmovzbl\t{P5}(%rsp), %ecx")
+        emit(f"\tsub\t{P4}(%rsp), %rcx\t/* CF4 + OF5 */")
+        if ccmp:
+            emit(f"\tlea\t-1(%rcx,{HI}), %rcx")
+        else:
+            emit(f"\tsub\t{HI}, %rcx")
+        if nq:
+            emit(f"\tlea\t-1(%rcx,{R[0]}), %rcx")
+        else:
+            emit(f"\tsub\t{R[0]}, %rcx")
+        emit("\tshl\t$32, %rcx")
+        emit("\tor\t%rcx, %rax")
+        emit(f"\tjmp\t{end}")
+    mode_table(table, entries)
+    emit(f"{end}:")
+    emit(f"\tadd\t${FRAME}, %rsp")
+    epilogue(name)
+
+
+def tc5q8():
+    """mp_limb_t gtc_tc5q8_n (mp_ptr a1, mp_ptr a2, mp_srcptr xp,
+                             mp_srcptr yp, mp_srcptr cp, mp_size_t n,
+                             unsigned mode)
+
+    In one pass over n >= 1 limbs, all read as signed n-limb numbers:
+      t = (x + y mod B^n) >> s, arithmetic and exact, s = 2 + (mode >> 3
+          & 1), y subtracted with mode & 1;
+      q = (t + c) / 5 modulo B^n, exact, c subtracted with mode & 2;
+      {a1, n} += q and {a2, n} += c - q, c's sign as in q, both
+          subtracted instead with mode & 4, where q != -B^n/2.
+    q is never stored.  Returns the net carries out of a1 and a2 (what the
+    limbs above each change by, -2 to 2) as two 32-bit signed halves, a1's
+    low.  a1 and a2 overlap neither each other nor the operands.
+
+    By blocks of 8 limbs (the n - 1 mod 8 limbs first, in blocks of 1, 2
+    and 4), the sums in eight registers and the ninth limb (the next
+    block's first) on the stack; the chains x +- y, t +- c and a1's along
+    CF, a2's two along CF and OF, each parked on the stack between blocks,
+    the loop closed on x's end there.  Every memory operand of an adc, sbb
+    or adcx and every store is base plus displacement, and no pointer
+    moves by a memory operand: three pointers, c's; x's, y's from it and
+    back by y - x; a1's, a2's likewise by a2 - a1; the differences in rdx,
+    free outside the division ((B-1)/5 is set again before it).  Where q
+    is subtracted, R = q by GMP's mpn_bdiv_dbm1c step with (B-1)/5; where
+    it is added, R = -q along two chains of one cycle a limb: R[u] = lo +
+    the high limb before (adcx) + R[u-1] (adox), each R in its register,
+    both carries into the block's last high limb, R's last limb through
+    the stack.  Then a1 - R (sbb) and a2 + R (adox) in every mode; -R is q
+    but for q = -B^n/2, its own negative.  One copy per mode, entered
+    through a tree on its bits.  For the Intel cores."""
+    name = "gtc_tc5q8_n"
+    emit(f"/* {name}: see the header.  */")
+    prologue(name, "GTC_TC5_FA")
+    PX, PC, A = "%r10", "%rsi", "%rdi"
+    H, LO, HI = "%r11", "%rax", "%rbx"
+    R = ["%rbp", "%r12", "%r13", "%r14", "%r15", "%r9", "%rcx", "%r8"]
+    # stack: 1 - CF of chains 1 to 3 at 0, 8 and 16; the mask -CF4 at 24,
+    # OF5's byte at 32; n - 1 at 40, x's end at 48; y - x at 56, a2 - a1
+    # at 64; the ninth sum at 72, R's last limb at 80
+    P1, P2, P3, P4, P5, CNT, END, DXY, DA, S8, RL = (0, 8, 16, 24, 32, 40,
+                                                      48, 56, 64, 72, 80)
+    FRAME = 88
+    MODE = FRAME + 56
+    emit(f"\tsub\t${FRAME}, %rsp")
+    emit("\tmov\t%rcx, %rax")
+    emit("\tsub\t%rdx, %rax")
+    emit(f"\tmov\t%rax, {DXY}(%rsp)\t/* y - x */")
+    emit("\tmov\t%rsi, %rax")
+    emit("\tsub\t%rdi, %rax")
+    emit(f"\tmov\t%rax, {DA}(%rsp)\t/* a2 - a1 */")
+    emit(f"\tmov\t%r8, {PC}")
+    emit(f"\tmov\t%rdx, {PX}")
+    emit(f"\tmov\t{MODE}(%rsp), %eax")
+    emit("\tand\t$15, %eax")
+    table = lab("q8t")
+    mode_dispatch("%eax", table)
+    entries = []
+    end = lab("q8e")
+    for mode in range(16):
+        ysub, csub, asub, sh = (mode & 1, mode >> 1 & 1, mode >> 2 & 1,
+                                2 + (mode >> 3 & 1))
+        ccmp = csub ^ asub		# c complemented on a2's CF chain
+        q2c = not asub			# -q by the two chains
+        l = lab("q8m")
+        entries.append(l)
+        emit(f"{l}:")
+        emit("\tlea\t-1(%r9), %r9")
+        emit(f"\tmov\t%r9, {CNT}(%rsp)")
+        emit(f"\tlea\t8({PX},%r9,8), {LO}")
+        emit(f"\tmov\t{LO}, {END}(%rsp)\t/* x's end */")
+        emit(f"\tmov\t({PX}), {LO}")
+        emit(f"\t{'sub' if ysub else 'add'}\t(%rcx), {LO}\t/* s0 */")
+        emit(f"\tsetnc\t{P1}(%rsp)")
+        emit(f"\tmov\t{LO}, {S8}(%rsp)")
+        emit(f"\tlea\t8({PX}), {PX}")
+        emit(f"\tmovq\t$1, {P2}(%rsp)")
+        emit(f"\tmovq\t$1, {P3}(%rsp)")
+        emit(f"\tmovq\t${-ccmp}, {P4}(%rsp)")
+        emit(f"\tmovq\t$0, {P5}(%rsp)")
+        emit(f"\tmov\t$0, {H}")
+        if q2c:
+            emit(f"\tmovq\t$0, {RL}(%rsp)\t/* R before: 0 */")
+        emit(f"\tmov\t{DXY}(%rsp), %rdx")
+
+        def front(m):
+            """The sums of m limbs, t in R[0..m-1], + c, / 5: q (-q where
+            q is added) in R; rdx left with a2 - a1."""
+            S = R[1:m + 1] if m < 8 else R[1:] + [HI]
+            emit(f"\tmov\t{S8}(%rsp), {R[0]}")
+            for u in range(m):
+                emit(f"\tmov\t{8 * u}({PX}), {S[u]}")
+            emit(f"\tadd\t%rdx, {PX}\t\t/* y */")
+            emit(f"\tcmpb\t$1, {P1}(%rsp)")
+            for u in range(m):
+                emit(f"\t{'sbb' if ysub else 'adc'}\t{8 * u}({PX}), {S[u]}")
+            emit(f"\tsetnc\t{P1}(%rsp)")
+            emit(f"\tsub\t%rdx, {PX}\t\t/* x */")
+            emit(f"\tmov\t{S[m - 1]}, {S8}(%rsp)")
+            for u in range(m):
+                shr_pair(sh, S[u], R[u], LO)
+            emit(f"\tcmpb\t$1, {P2}(%rsp)")
+            for u in range(m):
+                emit(f"\t{'sbb' if csub else 'adc'}\t{8 * u}({PC}), {R[u]}")
+            emit(f"\tsetnc\t{P2}(%rsp)")
+            emit("\tmovabs\t$0x3333333333333333, %rdx\t/* (B-1)/5 */")
+            if q2c:
+                # R[u] = lo + the high limb before (CF) + R[u-1] (OF); the
+                # high limbs alternate HI, H, ..., the one before the
+                # block in H with both carries; R's last limb in RL
+                emit("\txor\t%eax, %eax\t\t/* CF = OF = 0, rax 0 */")
+                hp = H
+                for u in range(m):
+                    hc = HI if u % 2 == 0 else H
+                    emit(f"\tmulx\t{R[u]}, {R[u]}, {hc}")
+                    emit(f"\tadcx\t{hp}, {R[u]}")
+                    prev = f"{RL}(%rsp)" if u == 0 else R[u - 1]
+                    emit(f"\tadox\t{prev}, {R[u]}\t/* -q */")
+                    hp = hc
+                if hp != H:
+                    emit(f"\tmov\t{hp}, {H}")
+                emit(f"\tadcx\t%rax, {H}\t\t/* both carries in */")
+                emit(f"\tadox\t%rax, {H}")
+                emit(f"\tmov\t{R[m - 1]}, {RL}(%rsp)")
+            else:
+                for u in range(m):
+                    emit(f"\tmulx\t{R[u]}, {LO}, {HI}")
+                    emit(f"\tsub\t{LO}, {H}")
+                    emit(f"\tmov\t{H}, {R[u]}")
+                    emit(f"\tsbb\t{HI}, {H}")
+            emit(f"\tmov\t{DA}(%rsp), %rdx\t/* a2 - a1 */")
+
+        def back(m):
+            """The accumulations of m limbs of q in R; rdx left with
+            y - x."""
+            emit(f"\tcmpb\t$1, {P3}(%rsp)")
+            for u in range(m):
+                emit(f"\tmov\t{8 * u}({A}), {LO}")
+                emit(f"\tsbb\t{R[u]}, {LO}")
+                emit(f"\tmov\t{LO}, {8 * u}({A})")
+            emit(f"\tsetnc\t{P3}(%rsp)")
+            emit(f"\tadd\t%rdx, {A}\t\t/* a2 */")
+            emit(f"\tcmpb\t$0x81, {P5}(%rsp)\t/* OF back, CF = 1 */")
+            emit(f"\tmov\t$0, {LO}")
+            emit(f"\tadcx\t{P4}(%rsp), {LO}\t/* CF back */")
+            for u in range(m):
+                emit(f"\tmov\t{8 * u}({A}), {LO}")
+                cu = f"{8 * u}({PC})"
+                if ccmp:
+                    emit(f"\tmov\t{cu}, {HI}")
+                    emit(f"\tnot\t{HI}")
+                    emit(f"\tadcx\t{HI}, {LO}")
+                else:
+                    emit(f"\tadcx\t{cu}, {LO}")
+                emit(f"\tadox\t{R[u]}, {LO}")
+                emit(f"\tmov\t{LO}, {8 * u}({A})")
+            emit(f"\tseto\t{P5}(%rsp)")
+            emit(f"\tsbb\t{HI}, {HI}")
+            emit(f"\tmov\t{HI}, {P4}(%rsp)\t/* -CF4 */")
+            emit(f"\tsub\t%rdx, {A}\t\t/* a1 */")
+            emit(f"\tlea\t{8 * m}({A}), {A}")
+            emit(f"\tmov\t{DXY}(%rsp), %rdx\t/* y - x */")
+
+        def block(m):
+            front(m)
+            back(m)
+            emit(f"\tlea\t{8 * m}({PX}), {PX}")
+            emit(f"\tlea\t{8 * m}({PC}), {PC}")
+
+        for bit in (0, 1, 2):
+            skip = lab("q8b")
+            emit(f"\ttestb\t${1 << bit}, {CNT}(%rsp)")
+            emit(f"\tjz\t{skip}")
+            block(1 << bit)
+            emit(f"{skip}:")
+        loop, ldone = lab("q8l"), lab("q8d")
+        emit(f"\tcmp\t{END}(%rsp), {PX}")
+        emit(f"\tje\t{ldone}")
+        emit("\t.p2align\t4")
+        emit(f"{loop}:")
+        block(8)
+        emit(f"\tcmp\t{END}(%rsp), {PX}")
+        emit(f"\tjne\t{loop}")
+        emit(f"{ldone}:")
+        # the last limb: the last sum shifted arithmetically, then as
+        # front (1) from its shift on and back (1)
+        emit(f"\tmov\t{S8}(%rsp), {R[0]}")
+        emit(f"\tsar\t${sh}, {R[0]}")
+        emit(f"\tcmpb\t$1, {P2}(%rsp)")
+        emit(f"\t{'sbb' if csub else 'adc'}\t({PC}), {R[0]}")
+        emit(f"\tsetnc\t{P2}(%rsp)")
+        emit("\tmovabs\t$0x3333333333333333, %rdx\t/* (B-1)/5 */")
+        if q2c:
+            emit(f"\tmulx\t{R[0]}, {R[0]}, {HI}")
+            emit(f"\tadd\t{H}, {R[0]}")
+            emit(f"\tadd\t{RL}(%rsp), {R[0]}\t/* -q */")
+        else:
+            emit(f"\tmulx\t{R[0]}, {LO}, {HI}")
+            emit(f"\tsub\t{LO}, {H}")
+            emit(f"\tmov\t{H}, {R[0]}")
+        emit(f"\tmov\t{DA}(%rsp), %rdx\t/* a2 - a1 */")
+        back(1)
+        # the net carries, as where q is subtracted
+        emit(f"\tshr\t$63, {R[0]}")
+        emit(f"\tmovzbl\t{P3}(%rsp), %eax\t/* 1 - b3 */")
+        emit(f"\tlea\t-1(%rax,{R[0]}), %rax")
+        emit("\tmov\t%eax, %eax")
+        emit(f"\tmov\t({PC}), {HI}")
+        emit(f"\tshr\t$63, {HI}\t\t/* tc */")
+        emit(f"\tmovzbl\t{P5}(%rsp), %ecx")
+        emit(f"\tsub\t{P4}(%rsp), %rcx\t/* CF4 + OF5 */")
+        if ccmp:
+            emit(f"\tlea\t-1(%rcx,{HI}), %rcx")
+        else:
+            emit(f"\tsub\t{HI}, %rcx")
+        emit(f"\tsub\t{R[0]}, %rcx")
+        emit("\tshl\t$32, %rcx")
+        emit("\tor\t%rcx, %rax")
+        emit(f"\tjmp\t{end}")
+    mode_table(table, entries)
+    emit(f"{end}:")
+    emit(f"\tadd\t${FRAME}, %rsp")
+    epilogue(name)
+
+
+def bfly():
+    """mp_limb_t gtc_bfly_n (mp_ptr sp, mp_ptr dp, mp_srcptr xp,
+                            mp_srcptr yp, mp_size_t n)
+
+    {sp, n} = x + y and {dp, n} = x - y modulo B^n in one pass, the sum
+    along CF (adcx), the difference along OF (adox of y's complement, the
+    carry-in 1); n >= 0.  sp may equal xp and dp yp (or the other way
+    round).  Returns 0.  Unrolled eight times, entered through a table at
+    the step that leaves a multiple of eight behind it, the loop control
+    lea and jrcxz."""
+    name = "gtc_bfly_n"
+    UN = 8
+    emit(f"/* {name}: see the header.  */")
+    emit(f"\t.globl\t{name}")
+    emit(f"\t.type\t{name}, @function")
+    emit("\t.p2align\tGTC_TC5_FA")
+    emit(f"{name}:")
+    ptrs = ["%rdi", "%rsi", "%rdx", "%r10"]
+    zero = lab("bz")
+    emit("\tmov\t%rcx, %r10\t\t/* yp: rcx counts */")
+    emit(f"\tlea\t{UN - 1}(%r8), %rcx")
+    emit(f"\tshr\t${UN.bit_length() - 1}, %rcx\t\t/* groups, the first one partial */")
+    emit(f"\tjz\t{zero}")
+    emit("\tneg\t%r8")
+    emit(f"\tand\t${UN - 1}, %r8d\t\t/* the steps the first group skips */")
+    emit("\tlea\t(,%r8,8), %r11")
+    for p in ptrs:
+        emit(f"\tsub\t%r11, {p}")
+    entries = [lab("be") for _ in range(UN)]
+    table, done = lab("bt"), lab("bd")
+    emit(f"\tlea\t{table}(%rip), %rax")
+    emit("\tmovslq\t(%rax,%r8,4), %r11")
+    emit("\tadd\t%r11, %rax")
+    emit("\tmov\t$0x7fffffffffffffff, %r11")
+    emit("\tadd\t$1, %r11\t\t/* OF = 1, CF = 0 */")
+    emit("\tjmp\t*%rax")
+    for u in range(UN):
+        o = 8 * u
+        emit(f"{entries[u]}:")
+        emit(f"\tmov\t{o}(%rdx), %rax")
+        emit(f"\tmov\t{o}(%r10), %r9")
+        emit("\tmov\t%rax, %r11")
+        emit("\tadcx\t%r9, %rax")
+        emit("\tnot\t%r9")
+        emit("\tadox\t%r9, %r11")
+        emit(f"\tmov\t%rax, {o}(%rdi)")
+        emit(f"\tmov\t%r11, {o}(%rsi)")
+    for p in ptrs:
+        emit(f"\tlea\t{8 * UN}({p}), {p}")
+    emit("\tlea\t-1(%rcx), %rcx")
+    emit(f"\tjrcxz\t{done}")
+    emit(f"\tjmp\t{entries[0]}")
+    emit(f"{done}:")
+    emit(f"{zero}:")
+    emit("\txor\t%eax, %eax")
+    emit("\tret")
+    emit("\t.p2align\t2")
+    emit(f"{table}:")
+    for e in entries:
+        emit(f"\t.long\t{e} - {table}")
+    emit(f"\t.size\t{name}, .-{name}")
+
+
+def tc5s(two_chain=False):
+    """mp_limb_t gtc_tc5s_n (mp_ptr r1, mp_ptr r2, mp_srcptr xp,
+                            mp_srcptr yp, mp_srcptr cp, mp_size_t n,
+                            unsigned mode)
+
+    In one pass over n >= 1 limbs:
+      t = (x + y mod B^n) >> 2, arithmetic and exact, y subtracted with
+          mode & 1;
+      {r1, n} = q = (t + c) / 5 modulo B^n, exact; mode >> 1 = 1: (t -
+          c) / 5, 2: (c - t) / 5;
+      {r2, n} = c - q modulo B^n.
+    Returns 0.  r1 and r2 overlap neither each other nor the operands.
+    Three carry chains (x +- y, the numerator, c - q), each along CF and
+    parked between blocks of 4 (the n - 1 mod 4 limbs first), the first in
+    n's register, the others on the stack; t by shrd (on the Zen by shl,
+    shr and or) one limb behind the sums, q by GMP's mpn_bdiv_dbm1c step
+    with (B-1)/5.  One copy per mode, entered through a tree on its bits.
+
+    With two_chain, (c - t)/5 along two chains of one cycle a limb: s = t
+    - c, the negated numerator, is one sbb in place, and R = R B + s m (m
+    = (B-1)/5) is q; the column sums along CF (adcx, the high limbs
+    alternating in rax and rbx, the block's last in rbx with both carries)
+    and q_u = that + q_(u-1) along OF (adox), each q in its register for c
+    - q, the block's last in r11."""
+    name = "gtc_tc5s_n"
+    emit(f"/* {name}: see the header.  */")
+    prologue(name, "GTC_TC5_FA")
+    R1, R2, X, Y, C, N = "%rdi", "%rsi", "%r10", "%rcx", "%r8", "%r9"
+    H, LO, HI = "%r11", "%rax", "%rbx"
+    R = ["%rbp", "%r12", "%r13", "%r14", "%r15"]
+    # stack: the parked chains 2 and 3 at 8 and 16 (chain 1 in n's
+    # register; 0 unused), n - 1 at 24, x's end at 32
+    P1, P2, P3, CNT, END, FRAME = 0, 8, 16, 24, 32, 40
+    MODE = FRAME + 56
+    emit(f"\tsub\t${FRAME}, %rsp")
+    emit(f"\tmov\t%rdx, {X}")
+    emit("\tmovabs\t$0x3333333333333333, %rdx\t/* (B-1)/5 */")
+    emit(f"\tmov\t{MODE}(%rsp), %eax")
+    emit("\tand\t$7, %eax")
+    table = lab("q6t")
+    mode_dispatch("%eax", table)
+    entries = []
+    end = lab("q6e")
+
+    def restore(slot):
+        if slot == P1:
+            emit(f"\tbt\t$0, {N}\t\t/* CF back */")
+        else:
+            emit(f"\tcmpb\t$1, {slot}(%rsp)\t/* CF back */")
+
+    def park(slot):
+        if slot == P1:
+            emit(f"\tsbb\t{N}, {N}\t\t/* -CF */")
+        else:
+            emit(f"\tsetnc\t{slot}(%rsp)\t/* 1 - CF */")
+
+    for mode in range(8):
+        ysub, cm = mode & 1, mode >> 1
+        if cm == 3:
+            entries.append(entries[mode & 1])	# unused
+            continue
+        l = lab("q6m")
+        entries.append(l)
+        emit(f"{l}:")
+        emit(f"\tlea\t-1({N}), {N}")
+        emit(f"\tmov\t{N}, {CNT}(%rsp)")
+        emit(f"\tlea\t8({X},{N},8), {LO}")
+        emit(f"\tmov\t{LO}, {END}(%rsp)\t/* x's end */")
+        emit(f"\tmov\t({X}), {R[0]}")
+        emit(f"\t{'sub' if ysub else 'add'}\t({Y}), {R[0]}\t/* s0 */")
+        park(P1)
+        emit(f"\tlea\t8({X}), {X}")
+        emit(f"\tlea\t8({Y}), {Y}")
+        emit(f"\tmovq\t$1, {P2}(%rsp)")
+        emit(f"\tmovq\t$1, {P3}(%rsp)")
+        emit(f"\txor\t{H}d, {H}d")
+        q2c = two_chain and cm == 2
+        if q2c:
+            emit("\txor\t%ebx, %ebx\t\t/* the high limb before: 0 */")
+
+        def rest2c(m):
+            """rest's steps for (c - t)/5 by the two chains."""
+            restore(P2)
+            for u in range(m):
+                emit(f"\tsbb\t{8 * u}({C}), {R[u]}\t/* t - c */")
+            park(P2)
+            emit(f"\ttest\t{LO}, {LO}\t\t/* CF = OF = 0 */")
+            hp = HI
+            for u in range(m):
+                hc = LO if u % 2 == 0 else HI
+                emit(f"\tmulx\t{R[u]}, {R[u]}, {hc}")
+                emit(f"\tadcx\t{hp}, {R[u]}")
+                emit(f"\tadox\t{H if u == 0 else R[u - 1]}, {R[u]}\t/* q */")
+                emit(f"\tmov\t{R[u]}, {8 * u}({R1})")
+                hp = hc
+            emit(f"\tmov\t{R[m - 1]}, {H}")
+            if hp != HI:
+                emit(f"\tmov\t{hp}, {HI}")
+            emit("\tmov\t$0, %eax")
+            emit(f"\tadcx\t{LO}, {HI}\t\t/* both carries in */")
+            emit(f"\tadox\t{LO}, {HI}")
+            restore(P3)
+            for u in range(m):
+                emit(f"\tmov\t{8 * u}({C}), {LO}")
+                emit(f"\tsbb\t{R[u]}, {LO}")
+                emit(f"\tmov\t{LO}, {8 * u}({R2})")
+            park(P3)
+            for p_ in (C, R1, R2):
+                emit(f"\tlea\t{8 * m}({p_}), {p_}")
+
+        def rest(m):
+            if q2c:
+                return rest2c(m)
+            restore(P2)
+            for u in range(m):
+                if cm == 2:
+                    emit(f"\tmov\t{8 * u}({C}), {HI}")
+                    emit(f"\tsbb\t{R[u]}, {HI}")
+                    emit(f"\tmov\t{HI}, {R[u]}")
+                else:
+                    emit(f"\t{'sbb' if cm else 'adc'}\t{8 * u}({C}), {R[u]}")
+            park(P2)
+            for u in range(m):
+                emit(f"\tmulx\t{R[u]}, {LO}, {HI}")
+                emit(f"\tsub\t{LO}, {H}")
+                emit(f"\tmov\t{H}, {8 * u}({R1})")
+                emit(f"\tmov\t{H}, {R[u]}")
+                emit(f"\tsbb\t{HI}, {H}")
+            restore(P3)
+            for u in range(m):
+                emit(f"\tmov\t{8 * u}({C}), {LO}")
+                emit(f"\tsbb\t{R[u]}, {LO}")
+                emit(f"\tmov\t{LO}, {8 * u}({R2})")
+            park(P3)
+            for p_ in (C, R1, R2):
+                emit(f"\tlea\t{8 * m}({p_}), {p_}")
+
+        def block(m):
+            restore(P1)
+            for u in range(m):
+                emit(f"\tmov\t{8 * u}({X}), {R[u + 1]}")
+                emit(f"\t{'sbb' if ysub else 'adc'}\t{8 * u}({Y}), {R[u + 1]}")
+            park(P1)
+            for u in range(m):
+                shr_pair(2, R[u + 1], R[u], LO)
+            for p_ in (X, Y):
+                emit(f"\tlea\t{8 * m}({p_}), {p_}")
+            rest(m)
+            emit(f"\tmov\t{R[m]}, {R[0]}")
+
+        for bit in (0, 1):
+            skip = lab("q6b")
+            emit(f"\ttestb\t${1 << bit}, {CNT}(%rsp)")
+            emit(f"\tjz\t{skip}")
+            block(1 << bit)
+            emit(f"{skip}:")
+        loop, ldone = lab("q6l"), lab("q6d")
+        emit(f"\tcmp\t{END}(%rsp), {X}")
+        emit(f"\tje\t{ldone}")
+        emit("\t.p2align\t4")
+        emit(f"{loop}:")
+        block(4)
+        emit(f"\tcmp\t{END}(%rsp), {X}")
+        emit(f"\tjne\t{loop}")
+        emit(f"{ldone}:")
+        emit(f"\tsar\t$2, {R[0]}")
+        rest(1)
+        emit(f"\tjmp\t{end}")
+    mode_table(table, entries)
+    emit(f"{end}:")
+    emit("\txor\t%eax, %eax")
+    emit(f"\tadd\t${FRAME}, %rsp")
+    epilogue(name)
+
+
+def tc5q4():
+    """void gtc_tc5q4_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
+                         mp_srcptr q0, mp_srcptr q8, mp_size_t n,
+                         mp_size_t n8y)
+
+    {rp, n} = ((x + y mod B^n) >> 2) - q0 - q8 modulo B^n, y subtracted
+    with n8y & 1, the shift arithmetic and exact, q8 of n8 = n8y >> 1
+    limbs (1 <= n8 <= n) sign-extended.  n >= 1; rp overlaps nothing.
+    Three carry chains: x +- y along CF (adc or sbb, parked by setnc,
+    back by cmpb $1), the sums one limb ahead and t by shrd (on the Zen by
+    shl, shr and or); then q0 + q8 along CF (adcx) and t + ~(q0 + q8)
+    along OF (adox, the carry-in 1), parked together (seto and sbb to a
+    mask, back by cmpb $0x81 and adcx of the mask into 0).  The limbs of t
+    below min (n8, n - 1) first, by the bits of their count in blocks of
+    1, 2 and 4, then of 8; then those of q8's sign extension below n - 1
+    the same way, q8's pointer at the sign limb on the stack and not
+    advanced; then the last limb (the last sum shifted arithmetically),
+    q8's pointer at its limb or the sign limb."""
+    name = "gtc_tc5q4_n"
+    emit(f"/* {name}: see the header.  */")
+    prologue(name, "GTC_TC5_FA")
+    RP, X, Y, Q0, Q8 = "%rdi", "%rsi", "%rdx", "%rcx", "%r8"
+    T = "%rax"
+    R = ["%rbx", "%rbp", "%r10", "%r11", "%r12", "%r13", "%r14", "%r15",
+         "%r9"]
+    # stack: 1 - CF of the sums at 0; the pair's -CF mask at 8 and OF's
+    # byte at 16; q8's sign limb at 24; the count of the sign extension's
+    # part at 32, of the first part at 40; q8's pointer for the last limb
+    # at 48
+    P1, P4, P5, SIGN, CB, CA, LASTQ, FRAME = 0, 8, 16, 24, 32, 40, 48, 56
+    N8Y = FRAME + 56
+    emit(f"\tsub\t${FRAME}, %rsp")
+    emit(f"\tmov\t{N8Y}(%rsp), %rax")
+    emit("\tmov\t%rax, %r10")
+    emit("\tshr\t%rax\t\t\t/* n8 */")
+    emit(f"\tmov\t-8({Q8},%rax,8), %r11")
+    emit("\tsar\t$63, %r11")
+    emit(f"\tmov\t%r11, {SIGN}(%rsp)\t/* q8's sign limb */")
+    emit(f"\tlea\t-8({Q8},%r9,8), %r11\t/* q8's limb n - 1, */")
+    emit(f"\tlea\t{SIGN}(%rsp), %rbx")
+    emit("\tcmp\t%r9, %rax")
+    emit("\tcmovne\t%rbx, %r11\t\t/* or the sign limb where n8 < n */")
+    emit(f"\tmov\t%r11, {LASTQ}(%rsp)")
+    emit("\tlea\t-1(%r9), %r11\t\t/* n - 1 */")
+    emit("\tcmp\t%r11, %rax")
+    emit("\tcmova\t%r11, %rax\t\t/* the first part: min (n8, n - 1) */")
+    emit("\tsub\t%rax, %r11")
+    emit(f"\tmov\t%r11, {CB}(%rsp)\t/* the second: n - 1 - that */")
+    emit(f"\tmov\t%rax, {CA}(%rsp)")
+    emit(f"\tmovq\t$0, {P4}(%rsp)\t/* q0 + q8: CF = 0 */")
+    emit(f"\tmovq\t$1, {P5}(%rsp)\t/* the complement's carry-in */")
+    minus = lab("q4m")
+    end = lab("q4e")
+    emit("\ttest\t$1, %r10b")
+    emit(f"\tjnz\t{minus}")
+
+    def restore1():
+        emit(f"\tcmpb\t$1, {P1}(%rsp)\t/* CF back */")
+
+    def park1():
+        emit(f"\tsetnc\t{P1}(%rsp)\t/* 1 - CF */")
+
+    def rest(m, tail):
+        """t in R[0..m-1]: - q0 - q8, stored."""
+        emit(f"\tcmpb\t$0x81, {P5}(%rsp)\t/* OF back, CF = 1 */")
+        emit(f"\tmov\t$0, {T}")
+        emit(f"\tadcx\t{P4}(%rsp), {T}\t/* CF back */")
+        for u in range(m):
+            emit(f"\tmov\t{8 * u}({Q0}), {T}")
+            emit(f"\tadcx\t{0 if tail else 8 * u}({Q8}), {T}")
+            emit(f"\tnot\t{T}")
+            emit(f"\tadox\t{R[u]}, {T}")
+            emit(f"\tmov\t{T}, {8 * u}({RP})")
+        emit(f"\tseto\t{P5}(%rsp)")
+        emit(f"\tsbb\t{T}, {T}")
+        emit(f"\tmov\t{T}, {P4}(%rsp)\t/* -CF */")
+        for p_ in (Q0, RP) + (() if tail else (Q8,)):
+            emit(f"\tlea\t{8 * m}({p_}), {p_}")
+
+    def block(m, ysub, tail):
+        restore1()
+        for u in range(m):
+            emit(f"\tmov\t{8 * u}({X}), {R[u + 1]}")
+            emit(f"\t{'sbb' if ysub else 'adc'}\t{8 * u}({Y}), {R[u + 1]}")
+        park1()
+        for u in range(m):
+            shr_pair(2, R[u + 1], R[u], T)
+        for p_ in (X, Y):
+            emit(f"\tlea\t{8 * m}({p_}), {p_}")
+        rest(m, tail)
+        emit(f"\tmov\t{R[m]}, {R[0]}")
+
+    for ysub, start in ((0, None), (1, minus)):
+        if start:
+            emit(f"{start}:")
+        emit(f"\tmov\t({X}), {R[0]}")
+        emit(f"\t{'sub' if ysub else 'add'}\t({Y}), {R[0]}\t/* s0 */")
+        park1()
+        emit(f"\tlea\t8({X}), {X}")
+        emit(f"\tlea\t8({Y}), {Y}")
+        # the first part (q8 from memory); R[8] is n's register, so the
+        # counts live on the stack
+        for bit in (0, 1, 2):
+            skip = lab("q4b")
+            emit(f"\ttestb\t${1 << bit}, {CA}(%rsp)")
+            emit(f"\tjz\t{skip}")
+            block(1 << bit, ysub, False)
+            emit(f"{skip}:")
+        loop, ldone = lab("q4l"), lab("q4d")
+        emit(f"\tshrq\t$3, {CA}(%rsp)")
+        emit(f"\tjz\t{ldone}")
+        emit("\t.p2align\t4")
+        emit(f"{loop}:")
+        block(8, ysub, False)
+        emit(f"\tsubq\t$1, {CA}(%rsp)")
+        emit(f"\tjnz\t{loop}")
+        emit(f"{ldone}:")
+        # q8's sign extension below n - 1: the pointer at the sign limb
+        emit(f"\tlea\t{SIGN}(%rsp), {Q8}")
+        for bit in (0, 1, 2):
+            skip = lab("q4b")
+            emit(f"\ttestb\t${1 << bit}, {CB}(%rsp)")
+            emit(f"\tjz\t{skip}")
+            block(1 << bit, ysub, True)
+            emit(f"{skip}:")
+        loop, ldone = lab("q4l"), lab("q4d")
+        emit(f"\tshrq\t$3, {CB}(%rsp)")
+        emit(f"\tjz\t{ldone}")
+        emit(f"{loop}:")
+        block(8, ysub, True)
+        emit(f"\tsubq\t$1, {CB}(%rsp)")
+        emit(f"\tjnz\t{loop}")
+        emit(f"{ldone}:")
+        # the last limb
+        emit(f"\tmov\t{LASTQ}(%rsp), {Q8}")
+        emit(f"\tsar\t$2, {R[0]}")
+        rest(1, True)
+        emit(f"\tjmp\t{end}")
+    emit(f"{end}:")
+    emit(f"\tadd\t${FRAME}, %rsp")
+    epilogue(name)
+
+
+def bflyq():
+    """mp_limb_t gtc_bflyq_n (mp_ptr sp, mp_ptr dp, mp_srcptr xp,
+                             mp_srcptr yp, mp_size_t n)
+
+    {sp, n} = (x + y mod B^n) >> 2 and {dp, n} = (x - y mod B^n) >> 2,
+    the shifts arithmetic and exact, in one pass; n >= 1.  sp may equal xp
+    and dp yp (or the other way round).  Returns 0.  Per block of 4 limbs
+    (the n - 1 mod 4 first, in blocks of 1 and 2 by its bits): x into
+    S[1..m] and D[1..m], the sums along CF (adc), the chain parked (setnc,
+    cmpb $1), the differences likewise (sbb), the results one limb behind
+    the sums (shrd), stored."""
+    name = "gtc_bflyq_n"
+    emit(f"/* {name}: see the header.  */")
+    prologue(name, "GTC_TC5_FA")
+    SP, DP, X, Y, N = "%rdi", "%rsi", "%rdx", "%rcx", "%r8"
+    S = ["%rax", "%rbx", "%rbp", "%r9", "%r10"]
+    D = ["%r11", "%r12", "%r13", "%r14", "%r15"]
+    # stack: the two parked chains (16 unused)
+    PS, PD, FRAME = 0, 8, 24
+    emit(f"\tsub\t${FRAME}, %rsp")
+    emit(f"\tmov\t({X}), {S[0]}")
+    emit(f"\tmov\t{S[0]}, {D[0]}")
+    emit(f"\tadd\t({Y}), {S[0]}")
+    emit(f"\tsetnc\t{PS}(%rsp)")
+    emit(f"\tsub\t({Y}), {D[0]}")
+    emit(f"\tsetnc\t{PD}(%rsp)")
+    emit(f"\tlea\t8({X}), {X}")
+    emit(f"\tlea\t8({Y}), {Y}")
+    emit(f"\tlea\t-1({N}), {N}")
+
+    def block(m):
+        emit(f"\tcmpb\t$1, {PS}(%rsp)\t/* CF back */")
+        for u in range(m):
+            emit(f"\tmov\t{8 * u}({X}), {S[u + 1]}")
+            emit(f"\tmov\t{S[u + 1]}, {D[u + 1]}")
+            emit(f"\tadc\t{8 * u}({Y}), {S[u + 1]}")
+        emit(f"\tsetnc\t{PS}(%rsp)")
+        emit(f"\tcmpb\t$1, {PD}(%rsp)")
+        for u in range(m):
+            emit(f"\tsbb\t{8 * u}({Y}), {D[u + 1]}")
+        emit(f"\tsetnc\t{PD}(%rsp)")
+        for u in range(m):
+            emit(f"\tshrd\t$2, {S[u + 1]}, {S[u]}")
+            emit(f"\tmov\t{S[u]}, {8 * u}({SP})")
+        for u in range(m):
+            emit(f"\tshrd\t$2, {D[u + 1]}, {D[u]}")
+            emit(f"\tmov\t{D[u]}, {8 * u}({DP})")
+        emit(f"\tmov\t{S[m]}, {S[0]}")
+        emit(f"\tmov\t{D[m]}, {D[0]}")
+        for p_ in (SP, DP, X, Y):
+            emit(f"\tlea\t{8 * m}({p_}), {p_}")
+
+    for bit in (0, 1):
+        skip = lab("bqb")
+        emit(f"\ttest\t${1 << bit}, {N}b")
+        emit(f"\tjz\t{skip}")
+        block(1 << bit)
+        emit(f"{skip}:")
+    loop, done = lab("bql"), lab("bqd")
+    emit(f"\tshr\t$2, {N}")
+    emit(f"\tjz\t{done}")
+    emit("\t.p2align\t4")
+    emit(f"{loop}:")
+    block(4)
+    emit(f"\tdec\t{N}")
+    emit(f"\tjnz\t{loop}")
+    emit(f"{done}:")
+    emit(f"\tsar\t$2, {S[0]}")
+    emit(f"\tmov\t{S[0]}, ({SP})")
+    emit(f"\tsar\t$2, {D[0]}")
+    emit(f"\tmov\t{D[0]}, ({DP})")
+    emit("\txor\t%eax, %eax")
+    emit(f"\tadd\t${FRAME}, %rsp")
+    epilogue(name)
+
+
+def tc5a():
+    """void gtc_tc5a_n (mp_ptr rp, mp_srcptr q0, mp_srcptr q4,
+                        mp_srcptr q8, mp_size_t n, mp_size_t n8)
+
+    {rp, n} = 2 (q0 + 4 (4 q8 - q4)) modulo B^n, q8 of n8 limbs (1 <= n8
+    <= n) sign-extended: t = 4 q8 - q4 along CF (q4's complement, the
+    carry-in 1), u = q0 + 4 t along OF, and 2 u, each shifted limb by shrx
+    of the limb below and lea with the scale, which leave the flags alone,
+    so that neither chain is ever parked.  Unrolled four times over q8's
+    limbs, entered through a table, then a limb a turn over q8's sign
+    extension; the loop control lea and jrcxz."""
+    name = "gtc_tc5a_n"
+    UN = 4
+    emit(f"/* {name}: see the header.  */")
+    prologue(name, "GTC_TC5_FA")
+    RP, Q0, Q4, Q8 = "%rdi", "%rsi", "%rdx", "%r10"
+    PQ8, PT, PU, LO, S, X = "%r11", "%rbx", "%rbp", "%r12", "%r13", "%r14"
+    C62, C63 = "%r15", "%rax"
+    emit(f"\tmov\t%rcx, {Q8}")
+    emit("\tsub\t%r9, %r8\t\t/* the limbs above q8 */")
+    emit("\tlea\t3(%r9), %rcx")
+    emit("\tshr\t$2, %rcx\t\t/* turns over q8, the first partial */")
+    emit("\tneg\t%r9")
+    emit(f"\tand\t${UN - 1}, %r9d\t\t/* the steps the first one skips */")
+    emit(f"\tlea\t(,%r9,8), {LO}")
+    for p_ in (RP, Q0, Q4, Q8):
+        emit(f"\tsub\t{LO}, {p_}")
+    entries = [lab("ae") for _ in range(UN)]
+    table, tail, tl, done = lab("at"), lab("aw"), lab("al"), lab("ad")
+    emit(f"\tlea\t{table}(%rip), {S}")
+    emit(f"\tmovslq\t({S},%r9,4), {X}")
+    emit(f"\tadd\t{X}, {S}")
+    emit(f"\tmov\t$62, {C62}d")
+    emit("\tmov\t$63, %eax")
+    emit(f"\txor\t{PQ8}d, {PQ8}d")
+    emit("\txor\t%ebx, %ebx")
+    emit("\txor\t%ebp, %ebp\t\t/* the limbs below: 0; CF = OF = 0 */")
+    emit("\tstc")
+    emit(f"\tjmp\t*{S}")
+
+    def step(o, q8):
+        """One limb at offset o, q8's from memory or the sign (q8 a
+        register)."""
+        emit(f"\tshrx\t{C62}, {PQ8}, {LO}")
+        emit(f"\tmov\t{q8}, {PQ8}")
+        emit(f"\tlea\t({LO},{PQ8},4), {S}\t/* 4 q8 */")
+        emit(f"\tmov\t{o}({Q4}), {X}")
+        emit(f"\tnot\t{X}")
+        emit(f"\tadcx\t{X}, {S}\t\t/* t */")
+        emit(f"\tshrx\t{C62}, {PT}, {LO}")
+        emit(f"\tmov\t{S}, {PT}")
+        emit(f"\tlea\t({LO},{S},4), {S}\t/* 4 t */")
+        emit(f"\tadox\t{o}({Q0}), {S}\t/* u */")
+        emit(f"\tshrx\t{C63}, {PU}, {LO}")
+        emit(f"\tmov\t{S}, {PU}")
+        emit(f"\tlea\t({LO},{S},2), {S}\t/* 2 u */")
+        emit(f"\tmov\t{S}, {o}({RP})")
+
+    for u in range(UN):
+        emit(f"{entries[u]}:")
+        step(8 * u, f"{8 * u}({Q8})")
+    for p_ in (RP, Q0, Q4, Q8):
+        emit(f"\tlea\t{8 * UN}({p_}), {p_}")
+    emit("\tlea\t-1(%rcx), %rcx")
+    emit(f"\tjrcxz\t{tail}")
+    emit(f"\tjmp\t{entries[0]}")
+    emit(f"{tail}:")
+    emit("\tmov\t%r8, %rcx")
+    emit(f"\tsarx\t{C63}, {PQ8}, {Q8}\t/* q8's sign */")
+    emit(f"\tjrcxz\t{done}")
+    emit(f"{tl}:")
+    step(0, Q8)
+    for p_ in (RP, Q0, Q4):
+        emit(f"\tlea\t8({p_}), {p_}")
+    emit("\tlea\t-1(%rcx), %rcx")
+    emit(f"\tjrcxz\t{done}")
+    emit(f"\tjmp\t{tl}")
+    emit(f"{done}:")
+    for r in ["r15", "r14", "r13", "r12", "rbp", "rbx"]:
+        emit(f"\tpop\t%{r}")
+    emit("\tret")
+    emit("\t.p2align\t2")
+    emit(f"{table}:")
+    for e in entries:
+        emit(f"\t.long\t{e} - {table}")
+    emit(f"\t.size\t{name}, .-{name}")
+
+
+def tc5uys():
+    """void gtc_tc5uys_n (mp_ptr rp, mp_ptr zp, mp_srcptr q0, mp_srcptr q4,
+                          mp_srcptr q8, mp_size_t n, mp_size_t n8m,
+                          mp_ptr up, mp_srcptr vp)
+
+    In one pass, all modulo B^n, q8 of n8 = n8m >> 3 limbs (1 <= n8 <= n)
+    sign-extended: {rp, n} = X = 2 (q0 + 4 (4 q8 - q4)) - z, or + z with
+    n8m & 1; {up, n} = Y = u - X, or u + X with n8m & 2; {zp, n} = Y + v,
+    or Y - v with n8m & 4, minus z where n8m's bits 0 and 1 are equal,
+    else plus z.  tc5uy's blocks with zp's two chains after u's (v from
+    the pointer on the stack, z again), along CF, each parked as the
+    others.
+    One copy per mode, entered through a tree on its bits."""
+    tc5uy(with_s=True)
+
+
+def tc5uy(with_s=False):
+    """void gtc_tc5uy_n (mp_ptr rp, mp_srcptr zp, mp_srcptr q0, mp_srcptr q4,
+                         mp_srcptr q8, mp_size_t n, mp_size_t n8zu,
+                         mp_ptr up)
+
+    {rp, n} = 2 (q0 + 4 (4 q8 - q4)) - z, or + z with n8zu & 1, modulo
+    B^n, and in the same pass {up, n} = u - {rp, n} over u, or u + {rp,
+    n} with n8zu & 2, q8 of n8 = n8zu >> 2 limbs (1 <= n8 <= n)
+    sign-extended.  By Horner's rule in blocks of eight limbs held in
+    registers through the three steps t <- x +- 2^s t, s = 2, 2, 1, the
+    n8 mod 8 limbs first (blocks of 1, 2 and 4 by n8's bits), then the
+    n - n8 limbs of q8's sign extension the same way, the sign in q8's
+    pointer register.  A step shifts t by shld $s from the limb below, the
+    limbs from the top down (the block's top limb kept on the stack for
+    the next block's first), then adds or subtracts x along CF (adc, sbb),
+    the chain restored at the step's start (cmpb $1) and parked at its end
+    (setnc).  u's is a fourth chain per block after rp's stores (sbb from
+    u's limb, or adc of it), parked as the others; the loop counts on the
+    stack, so that u's pointer has n's register.  rp may equal zp.  With
+    with_s, gtc_tc5uys_n."""
+    name = "gtc_tc5uys_n" if with_s else "gtc_tc5uy_n"
+    emit(f"/* {name}: see the header.  */")
+    prologue(name, "GTC_TC5_FA")
+    T = ["%rax", "%rbx", "%rbp", "%r10", "%r11", "%r12", "%r13", "%r14"]
+    TMP = "%r15"
+    RP, Z, Q0, Q4, Q8 = "%rdi", "%rsi", "%rdx", "%rcx", "%r8"
+    BLK = 8
+    SH = {1: 2, 2: 2, 3: 1}
+    SRC = {1: Q4, 2: Q0, 3: Z}
+    # stack: the parked chains (1 - CF) at 8 (k - 1); the limb below a
+    # step's block at 24 + 8 (k - 1); the tail's count at 48; the sign of
+    # q8 at 56 (64 unused); Y's parked chain at 72, the loop count at 80;
+    # with S its chains at 88 and 96, v's pointer at 104; u's pointer the
+    # eighth argument, v's the ninth
+    CF = {1: 0, 2: 8, 3: 16}
+    PRV = {1: 24, 2: 32, 3: 40}
+    TAIL, SIGN, FRAME = 48, 56, 88
+    CFY, CNTM, UP = 72, 80, "%r9"
+    CFS1, CFS2, VPS = 88, 96, 104
+    if with_s:
+        FRAME = 120
+    N8Z, UPARG, VPARG = FRAME + 56, FRAME + 64, FRAME + 72
+
+    def block(m, ops, tail, yadd=0, vop=None, zsop=None):
+        for u in range(m):
+            if tail:
+                emit(f"\tmov\t{Q8}, {T[u]}")
+            else:
+                emit(f"\tmov\t{8 * u}({Q8}), {T[u]}")
+        for k in (1, 2, 3):
+            s = SH[k]
+            emit(f"\tmov\t{PRV[k]}(%rsp), {TMP}\t/* the limb below */")
+            emit(f"\tmov\t{T[m - 1]}, {PRV[k]}(%rsp)")
+            for u in range(m - 1, -1, -1):
+                below = T[u - 1] if u else TMP
+                emit(f"\tshld\t${s}, {below}, {T[u]}")
+            emit(f"\tcmpb\t$1, {CF[k]}(%rsp)\t/* CF back */")
+            for u in range(m):
+                emit(f"\t{ops[k]}\t{8 * u}({SRC[k]}), {T[u]}")
+            emit(f"\tsetnc\t{CF[k]}(%rsp)\t/* 1 - CF */")
+        for u in range(m):
+            emit(f"\tmov\t{T[u]}, {8 * u}({RP})")
+        emit(f"\tcmpb\t$1, {CFY}(%rsp)\t/* CF back */")
+        if with_s:
+            # Y over -U's registers, then S = Y +- v -+ z, over z
+            for u in range(m):
+                if not yadd:
+                    emit(f"\tnot\t{T[u]}")
+                emit(f"\tadc\t{8 * u}({UP}), {T[u]}")
+                emit(f"\tmov\t{T[u]}, {8 * u}({UP})")
+            emit(f"\tsetnc\t{CFY}(%rsp)\t/* 1 - CF */")
+            emit(f"\tmov\t{VPS}(%rsp), {TMP}")
+            emit(f"\tcmpb\t$1, {CFS1}(%rsp)\t/* CF back */")
+            for u in range(m):
+                emit(f"\t{vop}\t{8 * u}({TMP}), {T[u]}")
+            emit(f"\tsetnc\t{CFS1}(%rsp)\t/* 1 - CF */")
+            emit(f"\tcmpb\t$1, {CFS2}(%rsp)\t/* CF back */")
+            for u in range(m):
+                emit(f"\t{zsop}\t{8 * u}({Z}), {T[u]}")
+            emit(f"\tsetnc\t{CFS2}(%rsp)\t/* 1 - CF */")
+            for u in range(m):
+                emit(f"\tmov\t{T[u]}, {8 * u}({Z})")
+            emit(f"\tlea\t{8 * m}({TMP}), {TMP}")
+            emit(f"\tmov\t{TMP}, {VPS}(%rsp)")
+            for p_ in (RP, Z, Q0, Q4) + (() if tail else (Q8,)) + (UP,):
+                emit(f"\tlea\t{8 * m}({p_}), {p_}")
+            return
+        for u in range(m):
+            if yadd:
+                emit(f"\tadc\t{8 * u}({UP}), {T[u]}")
+                emit(f"\tmov\t{T[u]}, {8 * u}({UP})")
+            else:
+                emit(f"\tmov\t{8 * u}({UP}), {TMP}")
+                emit(f"\tsbb\t{T[u]}, {TMP}")
+                emit(f"\tmov\t{TMP}, {8 * u}({UP})")
+        emit(f"\tsetnc\t{CFY}(%rsp)\t/* 1 - CF */")
+        for p_ in (RP, Z, Q0, Q4) + (() if tail else (Q8,)) + (UP,):
+            emit(f"\tlea\t{8 * m}({p_}), {p_}")
+
+    emit(f"\tsub\t${FRAME}, %rsp")
+    emit(f"\tmov\t{N8Z}(%rsp), %rax")
+    emit("\tmov\t%rax, %r10")
+    emit(f"\tshr\t${3 if with_s else 2}, %rax\t\t/* n8 */")
+    emit("\tsub\t%rax, %r9")
+    emit(f"\tmov\t%r9, {TAIL}(%rsp)\t/* n - n8 */")
+    emit(f"\tmov\t-8({Q8},%rax,8), %rbx")
+    emit("\tsar\t$63, %rbx")
+    emit(f"\tmov\t%rbx, {SIGN}(%rsp)\t/* q8's sign limb */")
+    emit(f"\tmov\t%rax, {CNTM}(%rsp)")
+    emit(f"\tmovq\t$1, {CFY}(%rsp)\t/* CF = 0 */")
+    emit(f"\tmov\t{UPARG}(%rsp), {UP}")
+    for k in (1, 2, 3):
+        emit(f"\tmovq\t$1, {CF[k]}(%rsp)\t/* CF = 0 */")
+        emit(f"\tmovq\t$0, {PRV[k]}(%rsp)")
+    done = lab("u5e")
+    if with_s:
+        # mode m: z added (bit 0), -U' added (bit 1), v subtracted (bit 2)
+        copies = [("adc" if m & 1 else "sbb", m >> 1 & 1,
+                   "sbb" if m & 4 else "adc",
+                   "sbb" if (m & 1) == (m >> 1 & 1) else "adc")
+                  for m in range(8)]
+        starts = [lab("u5p") for _ in copies]
+        emit(f"\tmov\t{VPARG}(%rsp), {TMP}")
+        emit(f"\tmov\t{TMP}, {VPS}(%rsp)\t/* v's pointer */")
+        emit(f"\tmovq\t$1, {CFS1}(%rsp)\t/* CF = 0 */")
+        emit(f"\tmovq\t$1, {CFS2}(%rsp)\t/* CF = 0 */")
+        emit("\tmov\t%r10d, %eax")
+        emit("\tand\t$7, %eax")
+        table = lab("u5t")
+        mode_dispatch("%eax", table)
+    else:
+        copies = [("sbb", 0, None, None), ("adc", 0, None, None),
+                  ("sbb", 1, None, None), ("adc", 1, None, None)]
+        starts = [None] + [lab("u5p") for _ in copies[1:]]
+        emit("\ttest\t$2, %r10b")
+        emit(f"\tjnz\t{starts[2]}")
+        emit("\ttest\t$1, %r10b")
+        emit(f"\tjnz\t{starts[1]}")
+    for (zop, yadd, vop, zsop), start in zip(copies, starts):
+        if start:
+            emit(f"{start}:")
+        if with_s:
+            # Y's carry-in: 1 where -U' is subtracted (its complement)
+            emit(f"\tmovq\t${1 if yadd else 0}, {CFY}(%rsp)")
+        elif start and yadd and zop == "sbb":
+            emit("\ttest\t$1, %r10b")
+            emit(f"\tjnz\t{starts[3]}")
+        ops = {1: "sbb", 2: "adc", 3: zop}
+        for tail in (False, True):
+            if tail:
+                emit(f"\tmov\t{TAIL}(%rsp), {TMP}")
+                emit(f"\tmov\t{TMP}, {CNTM}(%rsp)")
+                emit(f"\ttest\t{TMP}, {TMP}")
+                emit(f"\tjz\t{done}")
+                emit(f"\tmov\t{SIGN}(%rsp), {Q8}")
+            for bit in range(BLK.bit_length() - 1):
+                skip = lab("u5b")
+                emit(f"\ttestb\t${1 << bit}, {CNTM}(%rsp)")
+                emit(f"\tjz\t{skip}")
+                block(1 << bit, ops, tail, yadd, vop, zsop)
+                emit(f"{skip}:")
+            loop, ldone = lab("u5l"), lab("u5d")
+            emit(f"\tshrq\t${BLK.bit_length() - 1}, {CNTM}(%rsp)")
+            emit(f"\tjz\t{ldone}")
+            emit("\t.p2align\t4")
+            emit(f"{loop}:")
+            block(BLK, ops, tail, yadd, vop, zsop)
+            emit(f"\tsubq\t$1, {CNTM}(%rsp)")
+            emit(f"\tjnz\t{loop}")
+            emit(f"{ldone}:")
+        emit(f"\tjmp\t{done}")
+    emit(f"{done}:")
+    emit(f"\tadd\t${FRAME}, %rsp")
+    if with_s:
+        for r in ["r15", "r14", "r13", "r12", "rbp", "rbx"]:
+            emit(f"\tpop\t%{r}")
+        emit("\tret")
+        mode_table(table, starts)
+        emit(f"\t.size\t{name}, .-{name}")
+        return
+    epilogue(name)
+
+
+def tc5quad():
+    """void gtc_tc5quad_n (mp_ptr ap, mp_ptr bp, mp_ptr cp, mp_ptr dp,
+                           mp_size_t n, unsigned mode)
+
+    With P = a + b, M = a - b, Q = c + d, N = c - d (mod B^n): G = P and
+    H1 = M with mode & 1 (else G = M, H1 = P), D = Q and H2 = N with mode
+    & 2 (else D = N, H2 = Q); then a = H1, c = H2, b = (G - D) >> 2 and d
+    = (G + D) >> 2 with mode & 4 (else b = (G + D) >> 2, d = (G - D) >>
+    2), the shifts arithmetic, all in place.  n >= 1.  Per block of 3 limbs
+    (11 registers of data): c into two sets, Q along CF (adc) and N (sbb),
+    each chain parked (setnc, cmpb $1); H2 stored, D kept; a and b
+    likewise, H1 stored, G kept; G + D into the free set (adc), G - D over
+    G (sbb); each shifted (shrd, on the Zen shl, shr and or) and stored a
+    limb behind.  The first limb before the blocks, n - 1 by blocks of 3
+    and the rest by its bits after them, the last limb's shifts at the end;
+    the count on the stack.  One copy per mode, entered through a tree on
+    its bits."""
+    name = "gtc_tc5quad_n"
+    emit(f"/* {name}: see the header.  */")
+    prologue(name, "GTC_TC5_FA")
+    A, B, C, D = "%rdi", "%rsi", "%rdx", "%rcx"
+    SETS = [["%rax", "%rbx", "%rbp"], ["%r8", "%r9", "%r10"],
+            ["%r11", "%r12", "%r13"]]
+    XP, YP = "%r14", "%r15"
+    KQ, KN, KP, KM, KS, KD, CNT, FRAME = 0, 8, 16, 24, 32, 40, 48, 56
+    emit(f"\tsub\t${FRAME}, %rsp")
+    emit("\tlea\t-1(%r8), %rax")
+    emit(f"\tmov\t%rax, {CNT}(%rsp)\t/* n - 1 */")
+    table, end = lab("qdt"), lab("qde")
+    emit("\tand\t$7, %r9d")
+    mode_dispatch("%r9d", table)
+
+    def chain(park, first, ops):
+        if not first:
+            emit(f"\tcmpb\t$1, {park}(%rsp)\t/* CF back */")
+        for o in ops:
+            emit(o)
+        emit(f"\tsetnc\t{park}(%rsp)")
+
+    def block(m, mode, first=False):
+        """m limbs; first: limb 0, the sum and difference of G and D kept
+        unshifted."""
+        m0, m1, m2 = mode & 1, mode >> 1 & 1, mode >> 2 & 1
+        s1, s2, s3 = SETS
+        ad, sb = ("add", "sub") if first else ("adc", "sbb")
+        for u in range(m):
+            emit(f"\tmov\t{8 * u}({C}), {s1[u]}")
+            emit(f"\tmov\t{s1[u]}, {s2[u]}")
+        chain(KQ, first, [f"\t{ad}\t{8 * u}({D}), {s1[u]}" for u in range(m)])
+        chain(KN, first, [f"\t{sb}\t{8 * u}({D}), {s2[u]}" for u in range(m)])
+        dd, h2 = (s1, s2) if m1 else (s2, s1)
+        for u in range(m):
+            emit(f"\tmov\t{h2[u]}, {8 * u}({C})")
+        # a into the free set (P) and s3 (M)
+        for u in range(m):
+            emit(f"\tmov\t{8 * u}({A}), {h2[u]}")
+            emit(f"\tmov\t{h2[u]}, {s3[u]}")
+        chain(KP, first, [f"\t{ad}\t{8 * u}({B}), {h2[u]}" for u in range(m)])
+        chain(KM, first, [f"\t{sb}\t{8 * u}({B}), {s3[u]}" for u in range(m)])
+        gg, h1 = (h2, s3) if m0 else (s3, h2)
+        for u in range(m):
+            emit(f"\tmov\t{h1[u]}, {8 * u}({A})")
+        # G + D into H1's set, G - D over G
+        xs = h1
+        for u in range(m):
+            emit(f"\tmov\t{gg[u]}, {xs[u]}")
+        chain(KS, first, [f"\t{ad}\t{dd[u]}, {xs[u]}" for u in range(m)])
+        chain(KD, first, [f"\t{sb}\t{dd[u]}, {gg[u]}" for u in range(m)])
+        bs, ds = (gg, xs) if m2 else (xs, gg)
+        if first:
+            emit(f"\tmov\t{bs[0]}, {XP}")
+            emit(f"\tmov\t{ds[0]}, {YP}")
+        else:
+            for prev, cur, P_ in ((XP, bs, B), (YP, ds, D)):
+                shr_pair(2, cur[0], prev, dd[0])
+                emit(f"\tmov\t{prev}, -8({P_})")
+                for u in range(m - 1):
+                    shr_pair(2, cur[u + 1], cur[u], dd[0])
+                    emit(f"\tmov\t{cur[u]}, {8 * u}({P_})")
+                emit(f"\tmov\t{cur[m - 1]}, {prev}")
+        for p_ in (A, B, C, D):
+            emit(f"\tlea\t{8 * m}({p_}), {p_}")
+
+    entries = []
+    for mode in range(8):
+        l = lab("qdm")
+        entries.append(l)
+        emit(f"{l}:")
+        block(1, mode, first=True)
+        loop, tail = lab("qdl"), lab("qdr")
+        emit(f"\tsubq\t$3, {CNT}(%rsp)")
+        emit(f"\tjb\t{tail}")
+        emit("\t.p2align\t4")
+        emit(f"{loop}:")
+        block(3, mode)
+        emit(f"\tsubq\t$3, {CNT}(%rsp)")
+        emit(f"\tjae\t{loop}")
+        emit(f"{tail}:")
+        emit(f"\taddq\t$3, {CNT}(%rsp)\t/* the rest, 0 to 2 */")
+        for b in (1, 0):
+            skip = lab("qdb")
+            emit(f"\ttestb\t${1 << b}, {CNT}(%rsp)")
+            emit(f"\tjz\t{skip}")
+            block(1 << b, mode)
+            emit(f"{skip}:")
+        emit(f"\tsar\t$2, {XP}")
+        emit(f"\tmov\t{XP}, -8({B})")
+        emit(f"\tsar\t$2, {YP}")
+        emit(f"\tmov\t{YP}, -8({D})")
+        emit(f"\tjmp\t{end}")
+    emit(f"{end}:")
+    emit(f"\tadd\t${FRAME}, %rsp")
+    for r in ["r15", "r14", "r13", "r12", "rbp", "rbx"]:
+        emit(f"\tpop\t%{r}")
+    emit("\tret")
+    mode_table(table, entries)
+    emit(f"\t.size\t{name}, .-{name}")
+
+
+def gap():
+    """32 bytes of padding, which keep the kernels after it at their
+    offsets modulo 64 (their places in the 64-byte fetch windows)."""
+    emit("\t.p2align\t5")
+    emit("\t.skip\t32, 0xcc")
+
+
 def main():
     emit("/* Copyright (c) 2026 Huawei Technologies Co., Ltd.")
     emit("   SPDX-License-Identifier: BSD-3-Clause-Clear  */")
@@ -1977,6 +3233,13 @@ def main():
     emit("   mpn_bdiv_dbm1c, whose step it is.  n >= 0; rp may equal xp.  The")
     emit("   Gaussian Toom-4's q5 (gtc.c, gtc_44_interp_coeffs).")
     emit("")
+    emit("   mp_limb_t gtc_div15n_lsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,")
+    emit("                               mp_srcptr zp, mp_size_t n, unsigned signs)")
+    emit("")
+    emit("   {rp, n} = -(x + 4 y + 8 z) / 15 modulo B^n, exact, signs as")
+    emit("   above, the division along two carry chains.  Returns the result's")
+    emit("   top limb (0 for n = 0).  n >= 0; rp may equal xp.")
+    emit("")
     emit("   mp_limb_t gtc_addlsh123_n (mp_ptr rp, mp_srcptr ap, mp_srcptr bp,")
     emit("                              mp_srcptr cp, mp_srcptr dp, mp_size_t n)")
     emit("")
@@ -2000,6 +3263,14 @@ def main():
     emit("   may equal xp.  The Toom-4 style reduction's q5 (gtc.c,")
     emit("   r2gtc_44_interp).")
     emit("")
+    emit("   mp_limb_t gtc_div5n_rlsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,")
+    emit("                               mp_size_t n, unsigned sub)")
+    emit("")
+    emit("   {rp, n} = -(x + 4 y) / 5, or (x - 4 y) / 5 with sub & 1, modulo")
+    emit("   B^n, the division exact, along two carry chains; the limbs of 4 y")
+    emit("   made by shld.  Returns the result's top limb (0 for n = 0).")
+    emit("   n >= 0; rp may equal xp.")
+    emit("")
     emit("   mp_limb_t gtc_aorsmul_1 (mp_ptr rp, mp_srcptr up, mp_size_t n,")
     emit("                            mp_limb_t v, unsigned sub)")
     emit("")
@@ -2009,21 +3280,9 @@ def main():
     emit("")
     emit("   mp_limb_t gtc_rsh2add_n, gtc_rsh2sub_n (mp_ptr rp, mp_srcptr ap,")
     emit("                                          mp_srcptr bp, mp_size_t n)")
-    emit("   mp_limb_t gtc_rsh2add3_n, gtc_rsh3add3_n (mp_ptr rp, mp_srcptr ap,")
-    emit("                       mp_srcptr bp, mp_srcptr cp, mp_size_t n,")
-    emit("                       unsigned comp)")
     emit("")
-    emit("   gtc_rsh1add_n, gtc_rsh1sub_n and gtc_rsh1add3_n shifted by 2 or 3")
-    emit("   bits instead of 1 (the first two return the bits shifted out).")
-    emit("")
-    emit("   mp_limb_t gtc_div5_add_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,")
-    emit("                             mp_size_t n, unsigned mode)")
-    emit("")
-    emit("   {rp, n} = (x + y) / 5 modulo B^n, exact; mode 1: (x - y) / 5,")
-    emit("   mode 2: (y - x) / 5.  Returns the final h of GMP's")
-    emit("   mpn_bdiv_dbm1c.  n >= 0; rp may equal xp or yp.  The Gaussian")
-    emit("   Toom-5's q5, q6 and q7 from sums already divided by 4 (gtc.c,")
-    emit("   reg_div5_add).")
+    emit("   gtc_rsh1add_n and gtc_rsh1sub_n shifted by 2 bits instead of 1;")
+    emit("   they return the bits shifted out.")
     emit("")
     emit("   mp_limb_t gtc_t5r_n (mp_ptr d, mp_ptr dm, mp_srcptr x0,")
     emit("                        mp_srcptr x4, mp_srcptr y, mp_limb_t mf)")
@@ -2034,30 +3293,6 @@ def main():
     emit("   | b, m a multiple of 4, m >= 4; returns b | c << 1.  The Gaussian")
     emit("   Toom-5's t5 pass (gtc.c, eval5_t5r).")
     emit("")
-    emit("   mp_limb_t gtc_div5_add_sub_n (mp_ptr rp, mp_srcptr xp,")
-    emit("                     mp_srcptr yp, mp_size_t n, unsigned mode, mp_ptr sp)")
-    emit("")
-    emit("   gtc_div5_add_n's {rp, n} = q (mode & 3), and {sp, n} = z - q")
-    emit("   modulo B^n, z = y with mode & 4, else x, in the same pass.  rp")
-    emit("   and sp overlap neither xp nor yp nor each other.  The Toom-5s'")
-    emit("   q6 and q2 = c2 - q6 (gtc.c).")
-    emit("")
-    emit("   mp_limb_t gtc_div5_add_acc_n (mp_ptr rp, mp_srcptr xp,")
-    emit("                     mp_srcptr yp, mp_size_t n, unsigned mode, mp_ptr ap)")
-    emit("")
-    emit("   gtc_div5_add_n's {rp, n} = q (mode & 3), and {ap, n} += q, or -=")
-    emit("   q with mode & 4, in the same pass; returns that addition's carry")
-    emit("   (or borrow).  rp may equal xp or yp; ap overlaps none of")
-    emit("   rp, xp, yp.  The Toom-5 style reduction's q5 and q7 (gtc.c).")
-    emit("")
-    emit("   mp_limb_t gtc_rsh3add_n (mp_ptr rp, mp_srcptr ap, mp_srcptr bp,")
-    emit("                            mp_size_t n)")
-    emit("   mp_limb_t gtc_rsh3sub_n (mp_ptr rp, mp_srcptr ap, mp_srcptr bp,")
-    emit("                            mp_size_t n)")
-    emit("")
-    emit("   (a +- b mod B^n) >> 3, arithmetic, as gtc_rsh1add_n by 3 bits:")
-    emit("   the Gaussian Toom-5's q7 from a shared sum (gtc.c, GTC_TC5_AB).")
-    emit("")
     emit("   mp_limb_t gtc_aorslsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,")
     emit("                            mp_size_t n, unsigned s, unsigned mode)")
     emit("")
@@ -2065,24 +3300,112 @@ def main():
     emit("   1 <= s <= 63; returns the limb above (or the borrow from it) as")
     emit("   mpn_addmul_1 and mpn_submul_1 by 2^s, and as mpn_rsblsh_n with")
     emit("   mode 2 (the shifted-out bits minus the borrow).  n >= 0; rp may")
-    emit("   equal xp.  The Gaussian Toom-5's 8 q4 and 32 q8 (gtc.c,")
-    emit("   reg_aorsmul5), and in place of GMP's rsblsh1, rsblsh2 and addlsh2")
-    emit("   (GTC_RSBLSH1_N, GTC_RSBLSH2_N, GTC_ADDLSH2_N).")
+    emit("   equal xp.  In place of GMP's rsblsh1, rsblsh2 and addlsh2 (gtc.c,")
+    emit("   GTC_RSBLSH1_N, GTC_RSBLSH2_N, GTC_ADDLSH2_N).")
     emit("")
-    emit("   mp_limb_t gtc_div5_rlsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,")
-    emit("                              mp_size_t n, unsigned rsb)")
+    emit("   mp_limb_t gtc_aors2c_n (mp_ptr d, mp_ptr zp, mp_srcptr xp,")
+    emit("                           mp_srcptr yp, mp_size_t n, unsigned signs)")
     emit("")
-    emit("   {rp, n} = (x + 4 y) / 5, or (4 y - x) / 5 with rsb & 1, modulo")
-    emit("   B^n, the division exact: gtc_div5_lsh_n with the limbs of 4 y")
-    emit("   made by shld.  rp may equal xp.  r2gtc_44's q5 on the Intel")
-    emit("   cores (GTC_RTC4_SHLD).  */")
+    emit("   {d, n} = x +- y along CF and {zp, n} = d +- z along OF in one")
+    emit("   pass (signs & 1, & 2 subtract); returns CF + 2 OF.  n >= 0; d")
+    emit("   may equal xp or yp.")
+    emit("")
+    emit("   mp_limb_t gtc_tc5q_n (mp_ptr a1, mp_ptr a2, mp_srcptr xp,")
+    emit("                         mp_srcptr yp, mp_srcptr cp, mp_size_t n,")
+    emit("                         unsigned mode)")
+    emit("")
+    emit("   t = (x +- y mod B^n) >> s (arithmetic, exact; s = 2 + (mode >> 3")
+    emit("   & 1), y subtracted with mode & 1), q = (t +- c) / 5 (exact, c")
+    emit("   subtracted with mode & 2), {a1, n} += q and {a2, n} += c - q")
+    emit("   (both subtracted with mode & 4), q never stored.  Returns the net")
+    emit("   signed carries out of a1 and a2 as two 32-bit halves, a1's low.")
+    emit("   n >= 1.")
+    emit("")
+    emit("   mp_limb_t gtc_tc5q8_n (mp_ptr a1, mp_ptr a2, mp_srcptr xp,")
+    emit("                          mp_srcptr yp, mp_srcptr cp, mp_size_t n,")
+    emit("                          unsigned mode)")
+    emit("")
+    emit("   As gtc_tc5q_n, by blocks of 8 limbs; where q is added, q !=")
+    emit("   -B^n/2.")
+    emit("")
+    emit("   mp_limb_t gtc_tc5s_n (mp_ptr r1, mp_ptr r2, mp_srcptr xp,")
+    emit("                         mp_srcptr yp, mp_srcptr cp, mp_size_t n,")
+    emit("                         unsigned mode)")
+    emit("")
+    emit("   t = (x +- y mod B^n) >> 2 (y subtracted with mode & 1), {r1, n} =")
+    emit("   q = (t + c) / 5, (t - c) / 5 or (c - t) / 5 by mode >> 1, {r2, n}")
+    emit("   = c - q.  Returns 0.  n >= 1.")
+    emit("")
+    emit("   mp_limb_t gtc_bfly_n (mp_ptr sp, mp_ptr dp, mp_srcptr xp,")
+    emit("                         mp_srcptr yp, mp_size_t n)")
+    emit("")
+    emit("   {sp, n} = x + y and {dp, n} = x - y modulo B^n in one pass; sp")
+    emit("   may equal xp and dp yp, or the other way round.  Returns 0.")
+    emit("   n >= 0.")
+    emit("")
+    emit("   void gtc_tc5q4_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,")
+    emit("                     mp_srcptr q0, mp_srcptr q8, mp_size_t n,")
+    emit("                     mp_size_t n8y)")
+    emit("")
+    emit("   {rp, n} = ((x +- y mod B^n) >> 2) - q0 - q8 modulo B^n, y")
+    emit("   subtracted with n8y & 1, q8 of n8 = n8y >> 1 limbs (1 <= n8 <= n)")
+    emit("   sign-extended.  n >= 1.")
+    emit("")
+    emit("   mp_limb_t gtc_bflyq_n (mp_ptr sp, mp_ptr dp, mp_srcptr xp,")
+    emit("                          mp_srcptr yp, mp_size_t n)")
+    emit("")
+    emit("   {sp, n} = (x + y mod B^n) >> 2 and {dp, n} = (x - y mod B^n) >> 2,")
+    emit("   arithmetic and exact, in one pass; sp may equal xp and dp yp, or")
+    emit("   the other way round.  Returns 0.  n >= 1.")
+    emit("")
+    emit("   void gtc_tc5a_n (mp_ptr rp, mp_srcptr q0, mp_srcptr q4,")
+    emit("                    mp_srcptr q8, mp_size_t n, mp_size_t n8)")
+    emit("")
+    emit("   {rp, n} = A = 2 (q0 + 4 (4 q8 - q4)) modulo B^n, q8 of n8 limbs")
+    emit("   (1 <= n8 <= n) sign-extended.")
+    emit("")
+    emit("   void gtc_tc5uy_n (mp_ptr rp, mp_srcptr zp, mp_srcptr q0,")
+    emit("                     mp_srcptr q4, mp_srcptr q8, mp_size_t n,")
+    emit("                     mp_size_t n8zu, mp_ptr up)")
+    emit("")
+    emit("   {rp, n} = 2 (q0 + 4 (4 q8 - q4)) - z, or + z with n8zu & 1,")
+    emit("   modulo B^n, and {up, n} = u - {rp, n}, or u + {rp, n} with")
+    emit("   n8zu & 2, q8 of n8 = n8zu >> 2 limbs (1 <= n8 <= n)")
+    emit("   sign-extended.  rp may equal zp.")
+    emit("")
+    emit("   void gtc_tc5uys_n (mp_ptr rp, mp_ptr zp, mp_srcptr q0,")
+    emit("                      mp_srcptr q4, mp_srcptr q8, mp_size_t n,")
+    emit("                      mp_size_t n8m, mp_ptr up, mp_srcptr vp)")
+    emit("")
+    emit("   {rp, n} and {up, n} as gtc_tc5uy_n's (n8m & 1, & 2), and in the")
+    emit("   same pass {zp, n} = {up, n} + v, or - v with n8m & 4, minus z")
+    emit("   where n8m's bits 0 and 1 are equal, else plus z, q8 of n8 = n8m")
+    emit("   >> 3 limbs sign-extended.")
+    emit("")
+    emit("   void gtc_tc5quad_n (mp_ptr ap, mp_ptr bp, mp_ptr cp, mp_ptr dp,")
+    emit("                       mp_size_t n, unsigned mode)")
+    emit("")
+    emit("   In place, from P = a + b, M = a - b, Q = c + d, N = c - d modulo")
+    emit("   B^n: a = P, or M with mode & 1, and G the other; c = Q, or N")
+    emit("   with mode & 2, and D the other; b = (G + D) >> 2 and d = (G - D)")
+    emit("   >> 2, swapped with mode & 4, arithmetic and exact.  n >= 1.")
+    emit("")
+    emit("   Each kernel's comment in gen_linear.py says how.  */")
     emit("")
     emit("#if defined (__x86_64__) && defined (__ELF__) && defined (__BMI2__) "
          "&& defined (__ADX__) && !defined (GTC_NO_ASM)")
     # The section aligned to 64 bytes, so that the kernels keep their place
     # in the 64-byte fetch windows whatever the size of the code before them
     # (gtc.o): with the 32 of their own .p2align, a change of gtc.c moved
-    # them by 32 mod 64 at random, 0.1-0.2% of whole products.
+    # them by 32 mod 64 at random, 0.1-0.2% of whole products.  The
+    # Gaussian Toom-5's kernels start on a 64-byte boundary on the Zen.
+    emit("#if defined (__znver1__) || defined (__znver2__) "
+         "|| defined (__znver3__) || defined (__znver4__) "
+         "|| defined (__znver5__)")
+    emit("#define GTC_TC5_FA 6")
+    emit("#else")
+    emit("#define GTC_TC5_FA 5")
+    emit("#endif")
     emit("\t.text")
     emit("\t.p2align\t6")
     kara_recomp2()
@@ -2110,14 +3433,12 @@ def main():
     emit("#endif")
     aors_n("gtc_add_n", False)
     aors_n("gtc_sub_n", True)
-    # the division by 15 in blocks of 16 limbs on the Zen and with AVX-512,
-    # of 8 on the other Intel cores
+    # the division by 15, and on the Zen its -q by two chains
+    div15_lsh()
     emit("#if defined (__znver1__) || defined (__znver2__) "
          "|| defined (__znver3__) || defined (__znver4__) "
-         "|| defined (__znver5__) || defined (__AVX512F__)")
-    div15_lsh(16)
-    emit("#else")
-    div15_lsh(8)
+         "|| defined (__znver5__)")
+    div15_lsh(True)
     emit("#endif")
     # the value at 2: shld for steps 2 and 3 on the Intel cores, the
     # doublings along CF on the Zen, where shld is several micro-ops
@@ -2130,44 +3451,66 @@ def main():
     emit("#endif")
     aorslsh1()
     div5_lsh_reg()
-    div5_rlsh_shld()
+    # -(x + 4 y)/5 by shld, for the Intel cores
+    emit("#if !(defined (__znver1__) || defined (__znver2__) "
+         "|| defined (__znver3__) || defined (__znver4__) "
+         "|| defined (__znver5__))")
+    div5n_rlsh()
+    emit("#endif")
     aorsmul1()
-    # 32 bytes where a kernel no longer used was, so that the kernels below
-    # keep their offsets modulo 64 (see above)
-    emit("\t.p2align\t5")
-    emit("\t.skip\t32, 0xcc")
-    # the Gaussian Toom-5's shifted sums and its division by 5 of a sum
-    # already divided by 4 (the forms of the halvings above, shifted by 2
-    # or 3 bits)
+    gap()
+    # the Gaussian Toom-5's quarter butterflies (the forms of the halvings
+    # above, shifted by 2 bits)
     emit("#if defined (__znver1__) || defined (__znver2__) "
          "|| defined (__znver3__) || defined (__znver4__) "
          "|| defined (__znver5__)")
     rsh1_flagless("gtc_rsh2add_n", False, 2)
     rsh1_flagless("gtc_rsh2sub_n", True, 2)
-    rsh1add3_flagless("gtc_rsh2add3_n", 2)
-    rsh1add3_flagless("gtc_rsh3add3_n", 3)
     emit("#else")
     rsh1("gtc_rsh2add_n", False, 2)
     rsh1("gtc_rsh2sub_n", True, 2)
-    rsh1add3("gtc_rsh2add3_n", 2)
-    rsh1add3("gtc_rsh3add3_n", 3)
     emit("#endif")
-    div5_add_reg()
+    gap()
     t5r()
-    div5_add_fused("sub")
-    div5_add_fused("acc")
-    # (x +- y)/8 for the Gaussian Toom-5's q7 from a shared sum
-    # (gtc.c, GTC_TC5_AB), as the shifts by 2 above
+    gap()
+    aorslsh()
+    aors2c()
+    # the Gaussian Toom-5's kernels: the shifts flag-free on the Zen; the
+    # Intel cores' gtc_tc5s_n with (c - t)/5 along two chains, their q
+    # pass gtc_tc5q8_n (below)
     emit("#if defined (__znver1__) || defined (__znver2__) "
          "|| defined (__znver3__) || defined (__znver4__) "
          "|| defined (__znver5__)")
-    rsh1_flagless("gtc_rsh3add_n", False, 3)
-    rsh1_flagless("gtc_rsh3sub_n", True, 3)
+    FLAGFREE_SHR[0] = True
+    tc5q()
+    bfly()
+    tc5s()
+    tc5q4()
+    FLAGFREE_SHR[0] = False
     emit("#else")
-    rsh1("gtc_rsh3add_n", False, 3)
-    rsh1("gtc_rsh3sub_n", True, 3)
+    gap()
+    bfly()
+    tc5s(two_chain=True)
+    tc5q4()
     emit("#endif")
-    aorslsh()
+    bflyq()
+    tc5a()
+    tc5uy()
+    emit("#if defined (__znver1__) || defined (__znver2__) "
+         "|| defined (__znver3__) || defined (__znver4__) "
+         "|| defined (__znver5__)")
+    FLAGFREE_SHR[0] = True
+    tc5quad()
+    FLAGFREE_SHR[0] = False
+    emit("#else")
+    tc5quad()
+    emit("#endif")
+    tc5uys()
+    emit("#if !(defined (__znver1__) || defined (__znver2__) "
+         "|| defined (__znver3__) || defined (__znver4__) "
+         "|| defined (__znver5__))")
+    tc5q8()
+    emit("#endif")
     emit('\t.section\t.note.GNU-stack,"",@progbits')
     emit("#endif")
     print("\n".join(out))

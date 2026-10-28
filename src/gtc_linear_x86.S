@@ -74,6 +74,13 @@
    mpn_bdiv_dbm1c, whose step it is.  n >= 0; rp may equal xp.  The
    Gaussian Toom-4's q5 (gtc.c, gtc_44_interp_coeffs).
 
+   mp_limb_t gtc_div15n_lsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
+                               mp_srcptr zp, mp_size_t n, unsigned signs)
+
+   {rp, n} = -(x + 4 y + 8 z) / 15 modulo B^n, exact, signs as
+   above, the division along two carry chains.  Returns the result's
+   top limb (0 for n = 0).  n >= 0; rp may equal xp.
+
    mp_limb_t gtc_addlsh123_n (mp_ptr rp, mp_srcptr ap, mp_srcptr bp,
                               mp_srcptr cp, mp_srcptr dp, mp_size_t n)
 
@@ -97,6 +104,14 @@
    may equal xp.  The Toom-4 style reduction's q5 (gtc.c,
    r2gtc_44_interp).
 
+   mp_limb_t gtc_div5n_rlsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
+                               mp_size_t n, unsigned sub)
+
+   {rp, n} = -(x + 4 y) / 5, or (x - 4 y) / 5 with sub & 1, modulo
+   B^n, the division exact, along two carry chains; the limbs of 4 y
+   made by shld.  Returns the result's top limb (0 for n = 0).
+   n >= 0; rp may equal xp.
+
    mp_limb_t gtc_aorsmul_1 (mp_ptr rp, mp_srcptr up, mp_size_t n,
                             mp_limb_t v, unsigned sub)
 
@@ -106,21 +121,9 @@
 
    mp_limb_t gtc_rsh2add_n, gtc_rsh2sub_n (mp_ptr rp, mp_srcptr ap,
                                           mp_srcptr bp, mp_size_t n)
-   mp_limb_t gtc_rsh2add3_n, gtc_rsh3add3_n (mp_ptr rp, mp_srcptr ap,
-                       mp_srcptr bp, mp_srcptr cp, mp_size_t n,
-                       unsigned comp)
 
-   gtc_rsh1add_n, gtc_rsh1sub_n and gtc_rsh1add3_n shifted by 2 or 3
-   bits instead of 1 (the first two return the bits shifted out).
-
-   mp_limb_t gtc_div5_add_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
-                             mp_size_t n, unsigned mode)
-
-   {rp, n} = (x + y) / 5 modulo B^n, exact; mode 1: (x - y) / 5,
-   mode 2: (y - x) / 5.  Returns the final h of GMP's
-   mpn_bdiv_dbm1c.  n >= 0; rp may equal xp or yp.  The Gaussian
-   Toom-5's q5, q6 and q7 from sums already divided by 4 (gtc.c,
-   reg_div5_add).
+   gtc_rsh1add_n and gtc_rsh1sub_n shifted by 2 bits instead of 1;
+   they return the bits shifted out.
 
    mp_limb_t gtc_t5r_n (mp_ptr d, mp_ptr dm, mp_srcptr x0,
                         mp_srcptr x4, mp_srcptr y, mp_limb_t mf)
@@ -131,30 +134,6 @@
    | b, m a multiple of 4, m >= 4; returns b | c << 1.  The Gaussian
    Toom-5's t5 pass (gtc.c, eval5_t5r).
 
-   mp_limb_t gtc_div5_add_sub_n (mp_ptr rp, mp_srcptr xp,
-                     mp_srcptr yp, mp_size_t n, unsigned mode, mp_ptr sp)
-
-   gtc_div5_add_n's {rp, n} = q (mode & 3), and {sp, n} = z - q
-   modulo B^n, z = y with mode & 4, else x, in the same pass.  rp
-   and sp overlap neither xp nor yp nor each other.  The Toom-5s'
-   q6 and q2 = c2 - q6 (gtc.c).
-
-   mp_limb_t gtc_div5_add_acc_n (mp_ptr rp, mp_srcptr xp,
-                     mp_srcptr yp, mp_size_t n, unsigned mode, mp_ptr ap)
-
-   gtc_div5_add_n's {rp, n} = q (mode & 3), and {ap, n} += q, or -=
-   q with mode & 4, in the same pass; returns that addition's carry
-   (or borrow).  rp may equal xp or yp; ap overlaps none of
-   rp, xp, yp.  The Toom-5 style reduction's q5 and q7 (gtc.c).
-
-   mp_limb_t gtc_rsh3add_n (mp_ptr rp, mp_srcptr ap, mp_srcptr bp,
-                            mp_size_t n)
-   mp_limb_t gtc_rsh3sub_n (mp_ptr rp, mp_srcptr ap, mp_srcptr bp,
-                            mp_size_t n)
-
-   (a +- b mod B^n) >> 3, arithmetic, as gtc_rsh1add_n by 3 bits:
-   the Gaussian Toom-5's q7 from a shared sum (gtc.c, GTC_TC5_AB).
-
    mp_limb_t gtc_aorslsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
                             mp_size_t n, unsigned s, unsigned mode)
 
@@ -162,19 +141,104 @@
    1 <= s <= 63; returns the limb above (or the borrow from it) as
    mpn_addmul_1 and mpn_submul_1 by 2^s, and as mpn_rsblsh_n with
    mode 2 (the shifted-out bits minus the borrow).  n >= 0; rp may
-   equal xp.  The Gaussian Toom-5's 8 q4 and 32 q8 (gtc.c,
-   reg_aorsmul5), and in place of GMP's rsblsh1, rsblsh2 and addlsh2
-   (GTC_RSBLSH1_N, GTC_RSBLSH2_N, GTC_ADDLSH2_N).
+   equal xp.  In place of GMP's rsblsh1, rsblsh2 and addlsh2 (gtc.c,
+   GTC_RSBLSH1_N, GTC_RSBLSH2_N, GTC_ADDLSH2_N).
 
-   mp_limb_t gtc_div5_rlsh_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
-                              mp_size_t n, unsigned rsb)
+   mp_limb_t gtc_aors2c_n (mp_ptr d, mp_ptr zp, mp_srcptr xp,
+                           mp_srcptr yp, mp_size_t n, unsigned signs)
 
-   {rp, n} = (x + 4 y) / 5, or (4 y - x) / 5 with rsb & 1, modulo
-   B^n, the division exact: gtc_div5_lsh_n with the limbs of 4 y
-   made by shld.  rp may equal xp.  r2gtc_44's q5 on the Intel
-   cores (GTC_RTC4_SHLD).  */
+   {d, n} = x +- y along CF and {zp, n} = d +- z along OF in one
+   pass (signs & 1, & 2 subtract); returns CF + 2 OF.  n >= 0; d
+   may equal xp or yp.
+
+   mp_limb_t gtc_tc5q_n (mp_ptr a1, mp_ptr a2, mp_srcptr xp,
+                         mp_srcptr yp, mp_srcptr cp, mp_size_t n,
+                         unsigned mode)
+
+   t = (x +- y mod B^n) >> s (arithmetic, exact; s = 2 + (mode >> 3
+   & 1), y subtracted with mode & 1), q = (t +- c) / 5 (exact, c
+   subtracted with mode & 2), {a1, n} += q and {a2, n} += c - q
+   (both subtracted with mode & 4), q never stored.  Returns the net
+   signed carries out of a1 and a2 as two 32-bit halves, a1's low.
+   n >= 1.
+
+   mp_limb_t gtc_tc5q8_n (mp_ptr a1, mp_ptr a2, mp_srcptr xp,
+                          mp_srcptr yp, mp_srcptr cp, mp_size_t n,
+                          unsigned mode)
+
+   As gtc_tc5q_n, by blocks of 8 limbs; where q is added, q !=
+   -B^n/2.
+
+   mp_limb_t gtc_tc5s_n (mp_ptr r1, mp_ptr r2, mp_srcptr xp,
+                         mp_srcptr yp, mp_srcptr cp, mp_size_t n,
+                         unsigned mode)
+
+   t = (x +- y mod B^n) >> 2 (y subtracted with mode & 1), {r1, n} =
+   q = (t + c) / 5, (t - c) / 5 or (c - t) / 5 by mode >> 1, {r2, n}
+   = c - q.  Returns 0.  n >= 1.
+
+   mp_limb_t gtc_bfly_n (mp_ptr sp, mp_ptr dp, mp_srcptr xp,
+                         mp_srcptr yp, mp_size_t n)
+
+   {sp, n} = x + y and {dp, n} = x - y modulo B^n in one pass; sp
+   may equal xp and dp yp, or the other way round.  Returns 0.
+   n >= 0.
+
+   void gtc_tc5q4_n (mp_ptr rp, mp_srcptr xp, mp_srcptr yp,
+                     mp_srcptr q0, mp_srcptr q8, mp_size_t n,
+                     mp_size_t n8y)
+
+   {rp, n} = ((x +- y mod B^n) >> 2) - q0 - q8 modulo B^n, y
+   subtracted with n8y & 1, q8 of n8 = n8y >> 1 limbs (1 <= n8 <= n)
+   sign-extended.  n >= 1.
+
+   mp_limb_t gtc_bflyq_n (mp_ptr sp, mp_ptr dp, mp_srcptr xp,
+                          mp_srcptr yp, mp_size_t n)
+
+   {sp, n} = (x + y mod B^n) >> 2 and {dp, n} = (x - y mod B^n) >> 2,
+   arithmetic and exact, in one pass; sp may equal xp and dp yp, or
+   the other way round.  Returns 0.  n >= 1.
+
+   void gtc_tc5a_n (mp_ptr rp, mp_srcptr q0, mp_srcptr q4,
+                    mp_srcptr q8, mp_size_t n, mp_size_t n8)
+
+   {rp, n} = A = 2 (q0 + 4 (4 q8 - q4)) modulo B^n, q8 of n8 limbs
+   (1 <= n8 <= n) sign-extended.
+
+   void gtc_tc5uy_n (mp_ptr rp, mp_srcptr zp, mp_srcptr q0,
+                     mp_srcptr q4, mp_srcptr q8, mp_size_t n,
+                     mp_size_t n8zu, mp_ptr up)
+
+   {rp, n} = 2 (q0 + 4 (4 q8 - q4)) - z, or + z with n8zu & 1,
+   modulo B^n, and {up, n} = u - {rp, n}, or u + {rp, n} with
+   n8zu & 2, q8 of n8 = n8zu >> 2 limbs (1 <= n8 <= n)
+   sign-extended.  rp may equal zp.
+
+   void gtc_tc5uys_n (mp_ptr rp, mp_ptr zp, mp_srcptr q0,
+                      mp_srcptr q4, mp_srcptr q8, mp_size_t n,
+                      mp_size_t n8m, mp_ptr up, mp_srcptr vp)
+
+   {rp, n} and {up, n} as gtc_tc5uy_n's (n8m & 1, & 2), and in the
+   same pass {zp, n} = {up, n} + v, or - v with n8m & 4, minus z
+   where n8m's bits 0 and 1 are equal, else plus z, q8 of n8 = n8m
+   >> 3 limbs sign-extended.
+
+   void gtc_tc5quad_n (mp_ptr ap, mp_ptr bp, mp_ptr cp, mp_ptr dp,
+                       mp_size_t n, unsigned mode)
+
+   In place, from P = a + b, M = a - b, Q = c + d, N = c - d modulo
+   B^n: a = P, or M with mode & 1, and G the other; c = Q, or N
+   with mode & 2, and D the other; b = (G + D) >> 2 and d = (G - D)
+   >> 2, swapped with mode & 4, arithmetic and exact.  n >= 1.
+
+   Each kernel's comment in gen_linear.py says how.  */
 
 #if defined (__x86_64__) && defined (__ELF__) && defined (__BMI2__) && defined (__ADX__) && !defined (GTC_NO_ASM)
+#if defined (__znver1__) || defined (__znver2__) || defined (__znver3__) || defined (__znver4__) || defined (__znver5__)
+#define GTC_TC5_FA 6
+#else
+#define GTC_TC5_FA 5
+#endif
 	.text
 	.p2align	6
 	.globl	gtc_kara_recomp2
@@ -3033,7 +3097,6 @@ gtc_sub_n:
 	.long	.Lase279 - .Last271
 	.long	.Lase280 - .Last271
 	.size	gtc_sub_n, .-gtc_sub_n
-#if defined (__znver1__) || defined (__znver2__) || defined (__znver3__) || defined (__znver4__) || defined (__znver5__) || defined (__AVX512F__)
 /* gtc_div15_lsh_n: see the header.  */
 	.globl	gtc_div15_lsh_n
 	.type	gtc_div15_lsh_n, @function
@@ -5440,33 +5503,34 @@ gtc_div15_lsh_n:
 	pop	%rbx
 	ret
 	.size	gtc_div15_lsh_n, .-gtc_div15_lsh_n
-#else
-/* gtc_div15_lsh_n: see the header.  */
-	.globl	gtc_div15_lsh_n
-	.type	gtc_div15_lsh_n, @function
+#if defined (__znver1__) || defined (__znver2__) || defined (__znver3__) || defined (__znver4__) || defined (__znver5__)
+/* gtc_div15n_lsh_n: see the header.  */
+	.globl	gtc_div15n_lsh_n
+	.type	gtc_div15n_lsh_n, @function
 	.p2align	5
-gtc_div15_lsh_n:
+gtc_div15n_lsh_n:
 	push	%rbx
 	push	%rbp
 	push	%r12
 	push	%r13
 	push	%r14
 	push	%r15
-	sub	$8, %rsp		/* the entry of the next block's division */
+	sub	$16, %rsp
 	mov	%rdx, %r10
 	mov	%rcx, %r11
-	lea	7(%r8), %rcx
-	shr	$3, %rcx		/* blocks, the first one partial */
-	test	%rcx, %rcx
+	test	%r8, %r8
 	jz	.Lqz428
+	lea	(%rdi,%r8,8), %rax
+	mov	%rax, 8(%rsp)		/* rp's end */
 	neg	%r8
-	and	$7, %r8d		/* the limbs the first block skips */
+	and	$15, %r8d		/* the limbs the first block skips */
 	lea	(,%r8,8), %rax
 	sub	%rax, %rdi
 	sub	%rax, %rsi
 	sub	%rax, %r10
 	sub	%rax, %r11
-	xor	%r12d, %r12d		/* h */
+	xor	%r12d, %r12d		/* R, the running sum */
+	xor	%ecx, %ecx		/* the high limb before: 0 */
 	xor	%r13d, %r13d		/* the limbs below y and z: 0 */
 	xor	%r14d, %r14d		/* the limbs below y and z: 0 */
 	xor	%r15d, %r15d		/* the limbs below y and z: 0 */
@@ -5481,11 +5545,11 @@ gtc_div15_lsh_n:
 	jnz	.Lqv11_433
 	jmp	.Lqv10_432
 .Lqv00_430:
-	lea	.Lqtb452(%rip), %rax
+	lea	.Lqtb468(%rip), %rax
 	movslq	(%rax,%r8,4), %rbx
 	add	%rbx, %rax
 	mov	%rax, (%rsp)
-	lea	.Lqta451(%rip), %rax
+	lea	.Lqta467(%rip), %rax
 	movslq	(%rax,%r8,4), %rbx
 	add	%rbx, %rax
 	mov	$62, %edx
@@ -5580,367 +5644,771 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 56(%rdi)
+.Lqa443:
+	mov	64(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 8 */
+	mov	64(%rsi), %r8
+	adcx	%rax, %r8
+	mov	64(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 64(%rdi)
+.Lqa444:
+	mov	72(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 9 */
+	mov	72(%rsi), %r8
+	adcx	%rax, %r8
+	mov	72(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 72(%rdi)
+.Lqa445:
+	mov	80(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 10 */
+	mov	80(%rsi), %r8
+	adcx	%rax, %r8
+	mov	80(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 80(%rdi)
+.Lqa446:
+	mov	88(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 11 */
+	mov	88(%rsi), %r8
+	adcx	%rax, %r8
+	mov	88(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 88(%rdi)
+.Lqa447:
+	mov	96(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 12 */
+	mov	96(%rsi), %r8
+	adcx	%rax, %r8
+	mov	96(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 96(%rdi)
+.Lqa448:
+	mov	104(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 13 */
+	mov	104(%rsi), %r8
+	adcx	%rax, %r8
+	mov	104(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 104(%rdi)
+.Lqa449:
+	mov	112(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 14 */
+	mov	112(%rsi), %r8
+	adcx	%rax, %r8
+	mov	112(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 112(%rdi)
+.Lqa450:
+	mov	120(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 15 */
+	mov	120(%rsi), %r8
+	adcx	%rax, %r8
+	mov	120(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 120(%rdi)
 	seto	%bl
 	sbb	%r9, %r9
 	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
+	xor	%r8d, %r8d
 	jmp	*(%rsp)
-.Lqb443:
+.Lqb451:
 	mulx	0(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-.Lqb444:
-	mulx	8(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb452:
+	mulx	8(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-.Lqb445:
+.Lqb453:
 	mulx	16(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-.Lqb446:
-	mulx	24(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb454:
+	mulx	24(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-.Lqb447:
+.Lqb455:
 	mulx	32(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 32(%rdi)
-	sbb	%r8, %r12
-.Lqb448:
-	mulx	40(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb456:
+	mulx	40(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 40(%rdi)
-	sbb	%r8, %r12
-.Lqb449:
+.Lqb457:
 	mulx	48(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 48(%rdi)
-	sbb	%r8, %r12
-.Lqb450:
-	mulx	56(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb458:
+	mulx	56(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 56(%rdi)
-	sbb	%r8, %r12
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%r10), %r10
-	lea	64(%r11), %r11
-	dec	%rcx
-	jz	.Lqe429
-	.p2align	4
-.Lqst453:
-	add	$0x7f, %bl
-	mov	$1, %eax
-	adcx	%r9, %rax
-	mov	$62, %edx
-	mov	$61, %r9d
-	mov	0(%r10), %r13
-	shrx	%rdx, %r14, %rax
-	lea	(%rax,%r13,4), %rax	/* 4 y, limb 0 */
-	mov	0(%rsi), %r8
-	adcx	%rax, %r8
-	mov	0(%r11), %r15
-	shrx	%r9, %rbp, %rbx
-	lea	(%rbx,%r15,8), %rbx	/* 8 z */
-	adox	%rbx, %r8
-	mov	%r8, 0(%rdi)
-	mov	8(%r10), %r14
-	shrx	%rdx, %r13, %rax
-	lea	(%rax,%r14,4), %rax	/* 4 y, limb 1 */
-	mov	8(%rsi), %r8
-	adcx	%rax, %r8
-	mov	8(%r11), %rbp
-	shrx	%r9, %r15, %rbx
-	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
-	adox	%rbx, %r8
-	mov	%r8, 8(%rdi)
-	mov	16(%r10), %r13
-	shrx	%rdx, %r14, %rax
-	lea	(%rax,%r13,4), %rax	/* 4 y, limb 2 */
-	mov	16(%rsi), %r8
-	adcx	%rax, %r8
-	mov	16(%r11), %r15
-	shrx	%r9, %rbp, %rbx
-	lea	(%rbx,%r15,8), %rbx	/* 8 z */
-	adox	%rbx, %r8
-	mov	%r8, 16(%rdi)
-	mov	24(%r10), %r14
-	shrx	%rdx, %r13, %rax
-	lea	(%rax,%r14,4), %rax	/* 4 y, limb 3 */
-	mov	24(%rsi), %r8
-	adcx	%rax, %r8
-	mov	24(%r11), %rbp
-	shrx	%r9, %r15, %rbx
-	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
-	adox	%rbx, %r8
-	mov	%r8, 24(%rdi)
-	mov	32(%r10), %r13
-	shrx	%rdx, %r14, %rax
-	lea	(%rax,%r13,4), %rax	/* 4 y, limb 4 */
-	mov	32(%rsi), %r8
-	adcx	%rax, %r8
-	mov	32(%r11), %r15
-	shrx	%r9, %rbp, %rbx
-	lea	(%rbx,%r15,8), %rbx	/* 8 z */
-	adox	%rbx, %r8
-	mov	%r8, 32(%rdi)
-	mov	40(%r10), %r14
-	shrx	%rdx, %r13, %rax
-	lea	(%rax,%r14,4), %rax	/* 4 y, limb 5 */
-	mov	40(%rsi), %r8
-	adcx	%rax, %r8
-	mov	40(%r11), %rbp
-	shrx	%r9, %r15, %rbx
-	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
-	adox	%rbx, %r8
-	mov	%r8, 40(%rdi)
-	mov	48(%r10), %r13
-	shrx	%rdx, %r14, %rax
-	lea	(%rax,%r13,4), %rax	/* 4 y, limb 6 */
-	mov	48(%rsi), %r8
-	adcx	%rax, %r8
-	mov	48(%r11), %r15
-	shrx	%r9, %rbp, %rbx
-	lea	(%rbx,%r15,8), %rbx	/* 8 z */
-	adox	%rbx, %r8
-	mov	%r8, 48(%rdi)
-	mov	56(%r10), %r14
-	shrx	%rdx, %r13, %rax
-	lea	(%rax,%r14,4), %rax	/* 4 y, limb 7 */
-	mov	56(%rsi), %r8
-	adcx	%rax, %r8
-	mov	56(%r11), %rbp
-	shrx	%r9, %r15, %rbx
-	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
-	adox	%rbx, %r8
-	mov	%r8, 56(%rdi)
-	seto	%bl
-	sbb	%r9, %r9
-	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
-	mulx	0(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	8(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	16(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	24(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	mulx	32(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 32(%rdi)
-	sbb	%r8, %r12
-	mulx	40(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 40(%rdi)
-	sbb	%r8, %r12
-	mulx	48(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 48(%rdi)
-	sbb	%r8, %r12
-	mulx	56(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 56(%rdi)
-	sbb	%r8, %r12
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%r10), %r10
-	lea	64(%r11), %r11
-	dec	%rcx
-	jnz	.Lqst453
-	jmp	.Lqe429
-	.p2align	2
-.Lqta451:
-	.long	.Lqa435 - .Lqta451
-	.long	.Lqa436 - .Lqta451
-	.long	.Lqa437 - .Lqta451
-	.long	.Lqa438 - .Lqta451
-	.long	.Lqa439 - .Lqta451
-	.long	.Lqa440 - .Lqta451
-	.long	.Lqa441 - .Lqta451
-	.long	.Lqa442 - .Lqta451
-	.p2align	2
-.Lqtb452:
-	.long	.Lqb443 - .Lqtb452
-	.long	.Lqb444 - .Lqtb452
-	.long	.Lqb445 - .Lqtb452
-	.long	.Lqb446 - .Lqtb452
-	.long	.Lqb447 - .Lqtb452
-	.long	.Lqb448 - .Lqtb452
-	.long	.Lqb449 - .Lqtb452
-	.long	.Lqb450 - .Lqtb452
-.Lqv01_431:
-	lea	.Lqtb471(%rip), %rax
-	movslq	(%rax,%r8,4), %rbx
-	add	%rbx, %rax
-	mov	%rax, (%rsp)
-	lea	.Lqta470(%rip), %rax
-	movslq	(%rax,%r8,4), %rbx
-	add	%rbx, %rax
-	mov	$62, %edx
-	mov	$61, %r9d
-	xor	%ebx, %ebx		/* CF = OF = 0 */
-	mov	$0x7fffffffffffffff, %rbx
-	add	$1, %rbx		/* OF = 1, CF = 0 */
-	jmp	*%rax
-.Lqa454:
-	mov	0(%r10), %r13
-	shrx	%rdx, %r14, %rax
-	lea	(%rax,%r13,4), %rax	/* 4 y, limb 0 */
-	mov	0(%rsi), %r8
-	adcx	%rax, %r8
-	mov	0(%r11), %r15
-	shrx	%r9, %rbp, %rbx
-	lea	(%rbx,%r15,8), %rbx	/* 8 z */
-	not	%rbx
-	adox	%rbx, %r8
-	mov	%r8, 0(%rdi)
-.Lqa455:
-	mov	8(%r10), %r14
-	shrx	%rdx, %r13, %rax
-	lea	(%rax,%r14,4), %rax	/* 4 y, limb 1 */
-	mov	8(%rsi), %r8
-	adcx	%rax, %r8
-	mov	8(%r11), %rbp
-	shrx	%r9, %r15, %rbx
-	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
-	not	%rbx
-	adox	%rbx, %r8
-	mov	%r8, 8(%rdi)
-.Lqa456:
-	mov	16(%r10), %r13
-	shrx	%rdx, %r14, %rax
-	lea	(%rax,%r13,4), %rax	/* 4 y, limb 2 */
-	mov	16(%rsi), %r8
-	adcx	%rax, %r8
-	mov	16(%r11), %r15
-	shrx	%r9, %rbp, %rbx
-	lea	(%rbx,%r15,8), %rbx	/* 8 z */
-	not	%rbx
-	adox	%rbx, %r8
-	mov	%r8, 16(%rdi)
-.Lqa457:
-	mov	24(%r10), %r14
-	shrx	%rdx, %r13, %rax
-	lea	(%rax,%r14,4), %rax	/* 4 y, limb 3 */
-	mov	24(%rsi), %r8
-	adcx	%rax, %r8
-	mov	24(%r11), %rbp
-	shrx	%r9, %r15, %rbx
-	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
-	not	%rbx
-	adox	%rbx, %r8
-	mov	%r8, 24(%rdi)
-.Lqa458:
-	mov	32(%r10), %r13
-	shrx	%rdx, %r14, %rax
-	lea	(%rax,%r13,4), %rax	/* 4 y, limb 4 */
-	mov	32(%rsi), %r8
-	adcx	%rax, %r8
-	mov	32(%r11), %r15
-	shrx	%r9, %rbp, %rbx
-	lea	(%rbx,%r15,8), %rbx	/* 8 z */
-	not	%rbx
-	adox	%rbx, %r8
-	mov	%r8, 32(%rdi)
-.Lqa459:
-	mov	40(%r10), %r14
-	shrx	%rdx, %r13, %rax
-	lea	(%rax,%r14,4), %rax	/* 4 y, limb 5 */
-	mov	40(%rsi), %r8
-	adcx	%rax, %r8
-	mov	40(%r11), %rbp
-	shrx	%r9, %r15, %rbx
-	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
-	not	%rbx
-	adox	%rbx, %r8
-	mov	%r8, 40(%rdi)
-.Lqa460:
-	mov	48(%r10), %r13
-	shrx	%rdx, %r14, %rax
-	lea	(%rax,%r13,4), %rax	/* 4 y, limb 6 */
-	mov	48(%rsi), %r8
-	adcx	%rax, %r8
-	mov	48(%r11), %r15
-	shrx	%r9, %rbp, %rbx
-	lea	(%rbx,%r15,8), %rbx	/* 8 z */
-	not	%rbx
-	adox	%rbx, %r8
-	mov	%r8, 48(%rdi)
-.Lqa461:
-	mov	56(%r10), %r14
-	shrx	%rdx, %r13, %rax
-	lea	(%rax,%r14,4), %rax	/* 4 y, limb 7 */
-	mov	56(%rsi), %r8
-	adcx	%rax, %r8
-	mov	56(%r11), %rbp
-	shrx	%r9, %r15, %rbx
-	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
-	not	%rbx
-	adox	%rbx, %r8
-	mov	%r8, 56(%rdi)
-	seto	%bl
-	sbb	%r9, %r9
-	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
-	jmp	*(%rsp)
+.Lqb459:
+	mulx	64(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 64(%rdi)
+.Lqb460:
+	mulx	72(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 72(%rdi)
+.Lqb461:
+	mulx	80(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 80(%rdi)
 .Lqb462:
-	mulx	0(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
+	mulx	88(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 88(%rdi)
 .Lqb463:
-	mulx	8(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
+	mulx	96(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 96(%rdi)
 .Lqb464:
-	mulx	16(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
+	mulx	104(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 104(%rdi)
 .Lqb465:
-	mulx	24(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
+	mulx	112(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 112(%rdi)
 .Lqb466:
-	mulx	32(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 32(%rdi)
-	sbb	%r8, %r12
-.Lqb467:
-	mulx	40(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 40(%rdi)
-	sbb	%r8, %r12
-.Lqb468:
-	mulx	48(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 48(%rdi)
-	sbb	%r8, %r12
-.Lqb469:
-	mulx	56(%rdi), %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 56(%rdi)
-	sbb	%r8, %r12
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%r10), %r10
-	lea	64(%r11), %r11
-	dec	%rcx
-	jz	.Lqe429
+	mulx	120(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 120(%rdi)
+	mov	$0, %eax
+	adcx	%rax, %rcx
+	adox	%rax, %rcx
+	lea	128(%rdi), %rdi
+	lea	128(%rsi), %rsi
+	lea	128(%r10), %r10
+	lea	128(%r11), %r11
+	cmp	8(%rsp), %rdi
+	je	.Lqe429
 	.p2align	4
-.Lqst472:
+.Lqst469:
+	add	$0x7f, %bl
+	mov	$1, %eax
+	adcx	%r9, %rax
+	mov	$62, %edx
+	mov	$61, %r9d
+	mov	0(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 0 */
+	mov	0(%rsi), %r8
+	adcx	%rax, %r8
+	mov	0(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 0(%rdi)
+	mov	8(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 1 */
+	mov	8(%rsi), %r8
+	adcx	%rax, %r8
+	mov	8(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 8(%rdi)
+	mov	16(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 2 */
+	mov	16(%rsi), %r8
+	adcx	%rax, %r8
+	mov	16(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 16(%rdi)
+	mov	24(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 3 */
+	mov	24(%rsi), %r8
+	adcx	%rax, %r8
+	mov	24(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 24(%rdi)
+	mov	32(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 4 */
+	mov	32(%rsi), %r8
+	adcx	%rax, %r8
+	mov	32(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 32(%rdi)
+	mov	40(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 5 */
+	mov	40(%rsi), %r8
+	adcx	%rax, %r8
+	mov	40(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 40(%rdi)
+	mov	48(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 6 */
+	mov	48(%rsi), %r8
+	adcx	%rax, %r8
+	mov	48(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 48(%rdi)
+	mov	56(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 7 */
+	mov	56(%rsi), %r8
+	adcx	%rax, %r8
+	mov	56(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 56(%rdi)
+	mov	64(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 8 */
+	mov	64(%rsi), %r8
+	adcx	%rax, %r8
+	mov	64(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 64(%rdi)
+	mov	72(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 9 */
+	mov	72(%rsi), %r8
+	adcx	%rax, %r8
+	mov	72(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 72(%rdi)
+	mov	80(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 10 */
+	mov	80(%rsi), %r8
+	adcx	%rax, %r8
+	mov	80(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 80(%rdi)
+	mov	88(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 11 */
+	mov	88(%rsi), %r8
+	adcx	%rax, %r8
+	mov	88(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 88(%rdi)
+	mov	96(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 12 */
+	mov	96(%rsi), %r8
+	adcx	%rax, %r8
+	mov	96(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 96(%rdi)
+	mov	104(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 13 */
+	mov	104(%rsi), %r8
+	adcx	%rax, %r8
+	mov	104(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 104(%rdi)
+	mov	112(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 14 */
+	mov	112(%rsi), %r8
+	adcx	%rax, %r8
+	mov	112(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 112(%rdi)
+	mov	120(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 15 */
+	mov	120(%rsi), %r8
+	adcx	%rax, %r8
+	mov	120(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 120(%rdi)
+	seto	%bl
+	sbb	%r9, %r9
+	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
+	test	%r12, %r12		/* CF = OF = 0 */
+	mulx	0(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 0(%rdi)
+	mulx	8(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 8(%rdi)
+	mulx	16(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 16(%rdi)
+	mulx	24(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 24(%rdi)
+	mulx	32(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 32(%rdi)
+	mulx	40(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 40(%rdi)
+	mulx	48(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 48(%rdi)
+	mulx	56(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 56(%rdi)
+	mulx	64(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 64(%rdi)
+	mulx	72(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 72(%rdi)
+	mulx	80(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 80(%rdi)
+	mulx	88(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 88(%rdi)
+	mulx	96(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 96(%rdi)
+	mulx	104(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 104(%rdi)
+	mulx	112(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 112(%rdi)
+	mulx	120(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 120(%rdi)
+	mov	$0, %eax
+	adcx	%rax, %rcx
+	adox	%rax, %rcx
+	lea	128(%rdi), %rdi
+	lea	128(%rsi), %rsi
+	lea	128(%r10), %r10
+	lea	128(%r11), %r11
+	cmp	8(%rsp), %rdi
+	jne	.Lqst469
+	jmp	.Lqe429
+	.p2align	2
+.Lqta467:
+	.long	.Lqa435 - .Lqta467
+	.long	.Lqa436 - .Lqta467
+	.long	.Lqa437 - .Lqta467
+	.long	.Lqa438 - .Lqta467
+	.long	.Lqa439 - .Lqta467
+	.long	.Lqa440 - .Lqta467
+	.long	.Lqa441 - .Lqta467
+	.long	.Lqa442 - .Lqta467
+	.long	.Lqa443 - .Lqta467
+	.long	.Lqa444 - .Lqta467
+	.long	.Lqa445 - .Lqta467
+	.long	.Lqa446 - .Lqta467
+	.long	.Lqa447 - .Lqta467
+	.long	.Lqa448 - .Lqta467
+	.long	.Lqa449 - .Lqta467
+	.long	.Lqa450 - .Lqta467
+	.p2align	2
+.Lqtb468:
+	.long	.Lqb451 - .Lqtb468
+	.long	.Lqb452 - .Lqtb468
+	.long	.Lqb453 - .Lqtb468
+	.long	.Lqb454 - .Lqtb468
+	.long	.Lqb455 - .Lqtb468
+	.long	.Lqb456 - .Lqtb468
+	.long	.Lqb457 - .Lqtb468
+	.long	.Lqb458 - .Lqtb468
+	.long	.Lqb459 - .Lqtb468
+	.long	.Lqb460 - .Lqtb468
+	.long	.Lqb461 - .Lqtb468
+	.long	.Lqb462 - .Lqtb468
+	.long	.Lqb463 - .Lqtb468
+	.long	.Lqb464 - .Lqtb468
+	.long	.Lqb465 - .Lqtb468
+	.long	.Lqb466 - .Lqtb468
+.Lqv01_431:
+	lea	.Lqtb503(%rip), %rax
+	movslq	(%rax,%r8,4), %rbx
+	add	%rbx, %rax
+	mov	%rax, (%rsp)
+	lea	.Lqta502(%rip), %rax
+	movslq	(%rax,%r8,4), %rbx
+	add	%rbx, %rax
+	mov	$62, %edx
+	mov	$61, %r9d
+	xor	%ebx, %ebx		/* CF = OF = 0 */
+	mov	$0x7fffffffffffffff, %rbx
+	add	$1, %rbx		/* OF = 1, CF = 0 */
+	jmp	*%rax
+.Lqa470:
+	mov	0(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 0 */
+	mov	0(%rsi), %r8
+	adcx	%rax, %r8
+	mov	0(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 0(%rdi)
+.Lqa471:
+	mov	8(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 1 */
+	mov	8(%rsi), %r8
+	adcx	%rax, %r8
+	mov	8(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 8(%rdi)
+.Lqa472:
+	mov	16(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 2 */
+	mov	16(%rsi), %r8
+	adcx	%rax, %r8
+	mov	16(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 16(%rdi)
+.Lqa473:
+	mov	24(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 3 */
+	mov	24(%rsi), %r8
+	adcx	%rax, %r8
+	mov	24(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 24(%rdi)
+.Lqa474:
+	mov	32(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 4 */
+	mov	32(%rsi), %r8
+	adcx	%rax, %r8
+	mov	32(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 32(%rdi)
+.Lqa475:
+	mov	40(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 5 */
+	mov	40(%rsi), %r8
+	adcx	%rax, %r8
+	mov	40(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 40(%rdi)
+.Lqa476:
+	mov	48(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 6 */
+	mov	48(%rsi), %r8
+	adcx	%rax, %r8
+	mov	48(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 48(%rdi)
+.Lqa477:
+	mov	56(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 7 */
+	mov	56(%rsi), %r8
+	adcx	%rax, %r8
+	mov	56(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 56(%rdi)
+.Lqa478:
+	mov	64(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 8 */
+	mov	64(%rsi), %r8
+	adcx	%rax, %r8
+	mov	64(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 64(%rdi)
+.Lqa479:
+	mov	72(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 9 */
+	mov	72(%rsi), %r8
+	adcx	%rax, %r8
+	mov	72(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 72(%rdi)
+.Lqa480:
+	mov	80(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 10 */
+	mov	80(%rsi), %r8
+	adcx	%rax, %r8
+	mov	80(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 80(%rdi)
+.Lqa481:
+	mov	88(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 11 */
+	mov	88(%rsi), %r8
+	adcx	%rax, %r8
+	mov	88(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 88(%rdi)
+.Lqa482:
+	mov	96(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 12 */
+	mov	96(%rsi), %r8
+	adcx	%rax, %r8
+	mov	96(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 96(%rdi)
+.Lqa483:
+	mov	104(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 13 */
+	mov	104(%rsi), %r8
+	adcx	%rax, %r8
+	mov	104(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 104(%rdi)
+.Lqa484:
+	mov	112(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 14 */
+	mov	112(%rsi), %r8
+	adcx	%rax, %r8
+	mov	112(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 112(%rdi)
+.Lqa485:
+	mov	120(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 15 */
+	mov	120(%rsi), %r8
+	adcx	%rax, %r8
+	mov	120(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 120(%rdi)
+	seto	%bl
+	sbb	%r9, %r9
+	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
+	xor	%r8d, %r8d
+	jmp	*(%rsp)
+.Lqb486:
+	mulx	0(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 0(%rdi)
+.Lqb487:
+	mulx	8(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 8(%rdi)
+.Lqb488:
+	mulx	16(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 16(%rdi)
+.Lqb489:
+	mulx	24(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 24(%rdi)
+.Lqb490:
+	mulx	32(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 32(%rdi)
+.Lqb491:
+	mulx	40(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 40(%rdi)
+.Lqb492:
+	mulx	48(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 48(%rdi)
+.Lqb493:
+	mulx	56(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 56(%rdi)
+.Lqb494:
+	mulx	64(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 64(%rdi)
+.Lqb495:
+	mulx	72(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 72(%rdi)
+.Lqb496:
+	mulx	80(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 80(%rdi)
+.Lqb497:
+	mulx	88(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 88(%rdi)
+.Lqb498:
+	mulx	96(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 96(%rdi)
+.Lqb499:
+	mulx	104(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 104(%rdi)
+.Lqb500:
+	mulx	112(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 112(%rdi)
+.Lqb501:
+	mulx	120(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 120(%rdi)
+	mov	$0, %eax
+	adcx	%rax, %rcx
+	adox	%rax, %rcx
+	lea	128(%rdi), %rdi
+	lea	128(%rsi), %rsi
+	lea	128(%r10), %r10
+	lea	128(%r11), %r11
+	cmp	8(%rsp), %rdi
+	je	.Lqe429
+	.p2align	4
+.Lqst504:
 	add	$0x7f, %bl
 	mov	$1, %eax
 	adcx	%r9, %rax
@@ -6034,74 +6502,214 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 56(%rdi)
+	mov	64(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 8 */
+	mov	64(%rsi), %r8
+	adcx	%rax, %r8
+	mov	64(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 64(%rdi)
+	mov	72(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 9 */
+	mov	72(%rsi), %r8
+	adcx	%rax, %r8
+	mov	72(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 72(%rdi)
+	mov	80(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 10 */
+	mov	80(%rsi), %r8
+	adcx	%rax, %r8
+	mov	80(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 80(%rdi)
+	mov	88(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 11 */
+	mov	88(%rsi), %r8
+	adcx	%rax, %r8
+	mov	88(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 88(%rdi)
+	mov	96(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 12 */
+	mov	96(%rsi), %r8
+	adcx	%rax, %r8
+	mov	96(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 96(%rdi)
+	mov	104(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 13 */
+	mov	104(%rsi), %r8
+	adcx	%rax, %r8
+	mov	104(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 104(%rdi)
+	mov	112(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 14 */
+	mov	112(%rsi), %r8
+	adcx	%rax, %r8
+	mov	112(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 112(%rdi)
+	mov	120(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 15 */
+	mov	120(%rsi), %r8
+	adcx	%rax, %r8
+	mov	120(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 120(%rdi)
 	seto	%bl
 	sbb	%r9, %r9
 	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
+	test	%r12, %r12		/* CF = OF = 0 */
 	mulx	0(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	8(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	8(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
 	mulx	16(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	24(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	24(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
 	mulx	32(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 32(%rdi)
-	sbb	%r8, %r12
-	mulx	40(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	40(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 40(%rdi)
-	sbb	%r8, %r12
 	mulx	48(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 48(%rdi)
-	sbb	%r8, %r12
-	mulx	56(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	56(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 56(%rdi)
-	sbb	%r8, %r12
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%r10), %r10
-	lea	64(%r11), %r11
-	dec	%rcx
-	jnz	.Lqst472
+	mulx	64(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 64(%rdi)
+	mulx	72(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 72(%rdi)
+	mulx	80(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 80(%rdi)
+	mulx	88(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 88(%rdi)
+	mulx	96(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 96(%rdi)
+	mulx	104(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 104(%rdi)
+	mulx	112(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 112(%rdi)
+	mulx	120(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 120(%rdi)
+	mov	$0, %eax
+	adcx	%rax, %rcx
+	adox	%rax, %rcx
+	lea	128(%rdi), %rdi
+	lea	128(%rsi), %rsi
+	lea	128(%r10), %r10
+	lea	128(%r11), %r11
+	cmp	8(%rsp), %rdi
+	jne	.Lqst504
 	jmp	.Lqe429
 	.p2align	2
-.Lqta470:
-	.long	.Lqa454 - .Lqta470
-	.long	.Lqa455 - .Lqta470
-	.long	.Lqa456 - .Lqta470
-	.long	.Lqa457 - .Lqta470
-	.long	.Lqa458 - .Lqta470
-	.long	.Lqa459 - .Lqta470
-	.long	.Lqa460 - .Lqta470
-	.long	.Lqa461 - .Lqta470
+.Lqta502:
+	.long	.Lqa470 - .Lqta502
+	.long	.Lqa471 - .Lqta502
+	.long	.Lqa472 - .Lqta502
+	.long	.Lqa473 - .Lqta502
+	.long	.Lqa474 - .Lqta502
+	.long	.Lqa475 - .Lqta502
+	.long	.Lqa476 - .Lqta502
+	.long	.Lqa477 - .Lqta502
+	.long	.Lqa478 - .Lqta502
+	.long	.Lqa479 - .Lqta502
+	.long	.Lqa480 - .Lqta502
+	.long	.Lqa481 - .Lqta502
+	.long	.Lqa482 - .Lqta502
+	.long	.Lqa483 - .Lqta502
+	.long	.Lqa484 - .Lqta502
+	.long	.Lqa485 - .Lqta502
 	.p2align	2
-.Lqtb471:
-	.long	.Lqb462 - .Lqtb471
-	.long	.Lqb463 - .Lqtb471
-	.long	.Lqb464 - .Lqtb471
-	.long	.Lqb465 - .Lqtb471
-	.long	.Lqb466 - .Lqtb471
-	.long	.Lqb467 - .Lqtb471
-	.long	.Lqb468 - .Lqtb471
-	.long	.Lqb469 - .Lqtb471
+.Lqtb503:
+	.long	.Lqb486 - .Lqtb503
+	.long	.Lqb487 - .Lqtb503
+	.long	.Lqb488 - .Lqtb503
+	.long	.Lqb489 - .Lqtb503
+	.long	.Lqb490 - .Lqtb503
+	.long	.Lqb491 - .Lqtb503
+	.long	.Lqb492 - .Lqtb503
+	.long	.Lqb493 - .Lqtb503
+	.long	.Lqb494 - .Lqtb503
+	.long	.Lqb495 - .Lqtb503
+	.long	.Lqb496 - .Lqtb503
+	.long	.Lqb497 - .Lqtb503
+	.long	.Lqb498 - .Lqtb503
+	.long	.Lqb499 - .Lqtb503
+	.long	.Lqb500 - .Lqtb503
+	.long	.Lqb501 - .Lqtb503
 .Lqv10_432:
-	lea	.Lqtb490(%rip), %rax
+	lea	.Lqtb538(%rip), %rax
 	movslq	(%rax,%r8,4), %rbx
 	add	%rbx, %rax
 	mov	%rax, (%rsp)
-	lea	.Lqta489(%rip), %rax
+	lea	.Lqta537(%rip), %rax
 	movslq	(%rax,%r8,4), %rbx
 	add	%rbx, %rax
 	mov	$62, %edx
@@ -6109,7 +6717,7 @@ gtc_div15_lsh_n:
 	xor	%ebx, %ebx		/* CF = OF = 0 */
 	stc
 	jmp	*%rax
-.Lqa473:
+.Lqa505:
 	mov	0(%r10), %r13
 	shrx	%rdx, %r14, %rax
 	lea	(%rax,%r13,4), %rax	/* 4 y, limb 0 */
@@ -6121,7 +6729,7 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%r15,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 0(%rdi)
-.Lqa474:
+.Lqa506:
 	mov	8(%r10), %r14
 	shrx	%rdx, %r13, %rax
 	lea	(%rax,%r14,4), %rax	/* 4 y, limb 1 */
@@ -6133,7 +6741,7 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 8(%rdi)
-.Lqa475:
+.Lqa507:
 	mov	16(%r10), %r13
 	shrx	%rdx, %r14, %rax
 	lea	(%rax,%r13,4), %rax	/* 4 y, limb 2 */
@@ -6145,7 +6753,7 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%r15,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 16(%rdi)
-.Lqa476:
+.Lqa508:
 	mov	24(%r10), %r14
 	shrx	%rdx, %r13, %rax
 	lea	(%rax,%r14,4), %rax	/* 4 y, limb 3 */
@@ -6157,7 +6765,7 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 24(%rdi)
-.Lqa477:
+.Lqa509:
 	mov	32(%r10), %r13
 	shrx	%rdx, %r14, %rax
 	lea	(%rax,%r13,4), %rax	/* 4 y, limb 4 */
@@ -6169,7 +6777,7 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%r15,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 32(%rdi)
-.Lqa478:
+.Lqa510:
 	mov	40(%r10), %r14
 	shrx	%rdx, %r13, %rax
 	lea	(%rax,%r14,4), %rax	/* 4 y, limb 5 */
@@ -6181,7 +6789,7 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 40(%rdi)
-.Lqa479:
+.Lqa511:
 	mov	48(%r10), %r13
 	shrx	%rdx, %r14, %rax
 	lea	(%rax,%r13,4), %rax	/* 4 y, limb 6 */
@@ -6193,7 +6801,7 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%r15,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 48(%rdi)
-.Lqa480:
+.Lqa512:
 	mov	56(%r10), %r14
 	shrx	%rdx, %r13, %rax
 	lea	(%rax,%r14,4), %rax	/* 4 y, limb 7 */
@@ -6205,58 +6813,198 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 56(%rdi)
+.Lqa513:
+	mov	64(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 8 */
+	not	%rax
+	mov	64(%rsi), %r8
+	adcx	%rax, %r8
+	mov	64(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 64(%rdi)
+.Lqa514:
+	mov	72(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 9 */
+	not	%rax
+	mov	72(%rsi), %r8
+	adcx	%rax, %r8
+	mov	72(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 72(%rdi)
+.Lqa515:
+	mov	80(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 10 */
+	not	%rax
+	mov	80(%rsi), %r8
+	adcx	%rax, %r8
+	mov	80(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 80(%rdi)
+.Lqa516:
+	mov	88(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 11 */
+	not	%rax
+	mov	88(%rsi), %r8
+	adcx	%rax, %r8
+	mov	88(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 88(%rdi)
+.Lqa517:
+	mov	96(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 12 */
+	not	%rax
+	mov	96(%rsi), %r8
+	adcx	%rax, %r8
+	mov	96(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 96(%rdi)
+.Lqa518:
+	mov	104(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 13 */
+	not	%rax
+	mov	104(%rsi), %r8
+	adcx	%rax, %r8
+	mov	104(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 104(%rdi)
+.Lqa519:
+	mov	112(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 14 */
+	not	%rax
+	mov	112(%rsi), %r8
+	adcx	%rax, %r8
+	mov	112(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 112(%rdi)
+.Lqa520:
+	mov	120(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 15 */
+	not	%rax
+	mov	120(%rsi), %r8
+	adcx	%rax, %r8
+	mov	120(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 120(%rdi)
 	seto	%bl
 	sbb	%r9, %r9
 	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
+	xor	%r8d, %r8d
 	jmp	*(%rsp)
-.Lqb481:
+.Lqb521:
 	mulx	0(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-.Lqb482:
-	mulx	8(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb522:
+	mulx	8(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-.Lqb483:
+.Lqb523:
 	mulx	16(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-.Lqb484:
-	mulx	24(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb524:
+	mulx	24(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-.Lqb485:
+.Lqb525:
 	mulx	32(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 32(%rdi)
-	sbb	%r8, %r12
-.Lqb486:
-	mulx	40(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb526:
+	mulx	40(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 40(%rdi)
-	sbb	%r8, %r12
-.Lqb487:
+.Lqb527:
 	mulx	48(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 48(%rdi)
-	sbb	%r8, %r12
-.Lqb488:
-	mulx	56(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb528:
+	mulx	56(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 56(%rdi)
-	sbb	%r8, %r12
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%r10), %r10
-	lea	64(%r11), %r11
-	dec	%rcx
-	jz	.Lqe429
+.Lqb529:
+	mulx	64(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 64(%rdi)
+.Lqb530:
+	mulx	72(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 72(%rdi)
+.Lqb531:
+	mulx	80(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 80(%rdi)
+.Lqb532:
+	mulx	88(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 88(%rdi)
+.Lqb533:
+	mulx	96(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 96(%rdi)
+.Lqb534:
+	mulx	104(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 104(%rdi)
+.Lqb535:
+	mulx	112(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 112(%rdi)
+.Lqb536:
+	mulx	120(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 120(%rdi)
+	mov	$0, %eax
+	adcx	%rax, %rcx
+	adox	%rax, %rcx
+	lea	128(%rdi), %rdi
+	lea	128(%rsi), %rsi
+	lea	128(%r10), %r10
+	lea	128(%r11), %r11
+	cmp	8(%rsp), %rdi
+	je	.Lqe429
 	.p2align	4
-.Lqst491:
+.Lqst539:
 	add	$0x7f, %bl
 	mov	$1, %eax
 	adcx	%r9, %rax
@@ -6350,74 +7098,214 @@ gtc_div15_lsh_n:
 	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
 	adox	%rbx, %r8
 	mov	%r8, 56(%rdi)
+	mov	64(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 8 */
+	not	%rax
+	mov	64(%rsi), %r8
+	adcx	%rax, %r8
+	mov	64(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 64(%rdi)
+	mov	72(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 9 */
+	not	%rax
+	mov	72(%rsi), %r8
+	adcx	%rax, %r8
+	mov	72(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 72(%rdi)
+	mov	80(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 10 */
+	not	%rax
+	mov	80(%rsi), %r8
+	adcx	%rax, %r8
+	mov	80(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 80(%rdi)
+	mov	88(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 11 */
+	not	%rax
+	mov	88(%rsi), %r8
+	adcx	%rax, %r8
+	mov	88(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 88(%rdi)
+	mov	96(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 12 */
+	not	%rax
+	mov	96(%rsi), %r8
+	adcx	%rax, %r8
+	mov	96(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 96(%rdi)
+	mov	104(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 13 */
+	not	%rax
+	mov	104(%rsi), %r8
+	adcx	%rax, %r8
+	mov	104(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 104(%rdi)
+	mov	112(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 14 */
+	not	%rax
+	mov	112(%rsi), %r8
+	adcx	%rax, %r8
+	mov	112(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 112(%rdi)
+	mov	120(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 15 */
+	not	%rax
+	mov	120(%rsi), %r8
+	adcx	%rax, %r8
+	mov	120(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	adox	%rbx, %r8
+	mov	%r8, 120(%rdi)
 	seto	%bl
 	sbb	%r9, %r9
 	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
+	test	%r12, %r12		/* CF = OF = 0 */
 	mulx	0(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	8(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	8(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
 	mulx	16(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	24(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	24(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
 	mulx	32(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 32(%rdi)
-	sbb	%r8, %r12
-	mulx	40(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	40(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 40(%rdi)
-	sbb	%r8, %r12
 	mulx	48(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 48(%rdi)
-	sbb	%r8, %r12
-	mulx	56(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	56(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 56(%rdi)
-	sbb	%r8, %r12
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%r10), %r10
-	lea	64(%r11), %r11
-	dec	%rcx
-	jnz	.Lqst491
+	mulx	64(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 64(%rdi)
+	mulx	72(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 72(%rdi)
+	mulx	80(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 80(%rdi)
+	mulx	88(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 88(%rdi)
+	mulx	96(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 96(%rdi)
+	mulx	104(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 104(%rdi)
+	mulx	112(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 112(%rdi)
+	mulx	120(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 120(%rdi)
+	mov	$0, %eax
+	adcx	%rax, %rcx
+	adox	%rax, %rcx
+	lea	128(%rdi), %rdi
+	lea	128(%rsi), %rsi
+	lea	128(%r10), %r10
+	lea	128(%r11), %r11
+	cmp	8(%rsp), %rdi
+	jne	.Lqst539
 	jmp	.Lqe429
 	.p2align	2
-.Lqta489:
-	.long	.Lqa473 - .Lqta489
-	.long	.Lqa474 - .Lqta489
-	.long	.Lqa475 - .Lqta489
-	.long	.Lqa476 - .Lqta489
-	.long	.Lqa477 - .Lqta489
-	.long	.Lqa478 - .Lqta489
-	.long	.Lqa479 - .Lqta489
-	.long	.Lqa480 - .Lqta489
+.Lqta537:
+	.long	.Lqa505 - .Lqta537
+	.long	.Lqa506 - .Lqta537
+	.long	.Lqa507 - .Lqta537
+	.long	.Lqa508 - .Lqta537
+	.long	.Lqa509 - .Lqta537
+	.long	.Lqa510 - .Lqta537
+	.long	.Lqa511 - .Lqta537
+	.long	.Lqa512 - .Lqta537
+	.long	.Lqa513 - .Lqta537
+	.long	.Lqa514 - .Lqta537
+	.long	.Lqa515 - .Lqta537
+	.long	.Lqa516 - .Lqta537
+	.long	.Lqa517 - .Lqta537
+	.long	.Lqa518 - .Lqta537
+	.long	.Lqa519 - .Lqta537
+	.long	.Lqa520 - .Lqta537
 	.p2align	2
-.Lqtb490:
-	.long	.Lqb481 - .Lqtb490
-	.long	.Lqb482 - .Lqtb490
-	.long	.Lqb483 - .Lqtb490
-	.long	.Lqb484 - .Lqtb490
-	.long	.Lqb485 - .Lqtb490
-	.long	.Lqb486 - .Lqtb490
-	.long	.Lqb487 - .Lqtb490
-	.long	.Lqb488 - .Lqtb490
+.Lqtb538:
+	.long	.Lqb521 - .Lqtb538
+	.long	.Lqb522 - .Lqtb538
+	.long	.Lqb523 - .Lqtb538
+	.long	.Lqb524 - .Lqtb538
+	.long	.Lqb525 - .Lqtb538
+	.long	.Lqb526 - .Lqtb538
+	.long	.Lqb527 - .Lqtb538
+	.long	.Lqb528 - .Lqtb538
+	.long	.Lqb529 - .Lqtb538
+	.long	.Lqb530 - .Lqtb538
+	.long	.Lqb531 - .Lqtb538
+	.long	.Lqb532 - .Lqtb538
+	.long	.Lqb533 - .Lqtb538
+	.long	.Lqb534 - .Lqtb538
+	.long	.Lqb535 - .Lqtb538
+	.long	.Lqb536 - .Lqtb538
 .Lqv11_433:
-	lea	.Lqtb509(%rip), %rax
+	lea	.Lqtb573(%rip), %rax
 	movslq	(%rax,%r8,4), %rbx
 	add	%rbx, %rax
 	mov	%rax, (%rsp)
-	lea	.Lqta508(%rip), %rax
+	lea	.Lqta572(%rip), %rax
 	movslq	(%rax,%r8,4), %rbx
 	add	%rbx, %rax
 	mov	$62, %edx
@@ -6427,7 +7315,7 @@ gtc_div15_lsh_n:
 	add	$1, %rbx		/* OF = 1, CF = 0 */
 	stc
 	jmp	*%rax
-.Lqa492:
+.Lqa540:
 	mov	0(%r10), %r13
 	shrx	%rdx, %r14, %rax
 	lea	(%rax,%r13,4), %rax	/* 4 y, limb 0 */
@@ -6440,7 +7328,7 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 0(%rdi)
-.Lqa493:
+.Lqa541:
 	mov	8(%r10), %r14
 	shrx	%rdx, %r13, %rax
 	lea	(%rax,%r14,4), %rax	/* 4 y, limb 1 */
@@ -6453,7 +7341,7 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 8(%rdi)
-.Lqa494:
+.Lqa542:
 	mov	16(%r10), %r13
 	shrx	%rdx, %r14, %rax
 	lea	(%rax,%r13,4), %rax	/* 4 y, limb 2 */
@@ -6466,7 +7354,7 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 16(%rdi)
-.Lqa495:
+.Lqa543:
 	mov	24(%r10), %r14
 	shrx	%rdx, %r13, %rax
 	lea	(%rax,%r14,4), %rax	/* 4 y, limb 3 */
@@ -6479,7 +7367,7 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 24(%rdi)
-.Lqa496:
+.Lqa544:
 	mov	32(%r10), %r13
 	shrx	%rdx, %r14, %rax
 	lea	(%rax,%r13,4), %rax	/* 4 y, limb 4 */
@@ -6492,7 +7380,7 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 32(%rdi)
-.Lqa497:
+.Lqa545:
 	mov	40(%r10), %r14
 	shrx	%rdx, %r13, %rax
 	lea	(%rax,%r14,4), %rax	/* 4 y, limb 5 */
@@ -6505,7 +7393,7 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 40(%rdi)
-.Lqa498:
+.Lqa546:
 	mov	48(%r10), %r13
 	shrx	%rdx, %r14, %rax
 	lea	(%rax,%r13,4), %rax	/* 4 y, limb 6 */
@@ -6518,7 +7406,7 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 48(%rdi)
-.Lqa499:
+.Lqa547:
 	mov	56(%r10), %r14
 	shrx	%rdx, %r13, %rax
 	lea	(%rax,%r14,4), %rax	/* 4 y, limb 7 */
@@ -6531,58 +7419,206 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 56(%rdi)
+.Lqa548:
+	mov	64(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 8 */
+	not	%rax
+	mov	64(%rsi), %r8
+	adcx	%rax, %r8
+	mov	64(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 64(%rdi)
+.Lqa549:
+	mov	72(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 9 */
+	not	%rax
+	mov	72(%rsi), %r8
+	adcx	%rax, %r8
+	mov	72(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 72(%rdi)
+.Lqa550:
+	mov	80(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 10 */
+	not	%rax
+	mov	80(%rsi), %r8
+	adcx	%rax, %r8
+	mov	80(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 80(%rdi)
+.Lqa551:
+	mov	88(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 11 */
+	not	%rax
+	mov	88(%rsi), %r8
+	adcx	%rax, %r8
+	mov	88(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 88(%rdi)
+.Lqa552:
+	mov	96(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 12 */
+	not	%rax
+	mov	96(%rsi), %r8
+	adcx	%rax, %r8
+	mov	96(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 96(%rdi)
+.Lqa553:
+	mov	104(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 13 */
+	not	%rax
+	mov	104(%rsi), %r8
+	adcx	%rax, %r8
+	mov	104(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 104(%rdi)
+.Lqa554:
+	mov	112(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 14 */
+	not	%rax
+	mov	112(%rsi), %r8
+	adcx	%rax, %r8
+	mov	112(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 112(%rdi)
+.Lqa555:
+	mov	120(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 15 */
+	not	%rax
+	mov	120(%rsi), %r8
+	adcx	%rax, %r8
+	mov	120(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 120(%rdi)
 	seto	%bl
 	sbb	%r9, %r9
 	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
+	xor	%r8d, %r8d
 	jmp	*(%rsp)
-.Lqb500:
+.Lqb556:
 	mulx	0(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-.Lqb501:
-	mulx	8(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb557:
+	mulx	8(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-.Lqb502:
+.Lqb558:
 	mulx	16(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-.Lqb503:
-	mulx	24(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb559:
+	mulx	24(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-.Lqb504:
+.Lqb560:
 	mulx	32(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 32(%rdi)
-	sbb	%r8, %r12
-.Lqb505:
-	mulx	40(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb561:
+	mulx	40(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 40(%rdi)
-	sbb	%r8, %r12
-.Lqb506:
+.Lqb562:
 	mulx	48(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 48(%rdi)
-	sbb	%r8, %r12
-.Lqb507:
-	mulx	56(%rdi), %rax, %r8
-	sub	%rax, %r12
+.Lqb563:
+	mulx	56(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 56(%rdi)
-	sbb	%r8, %r12
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%r10), %r10
-	lea	64(%r11), %r11
-	dec	%rcx
-	jz	.Lqe429
+.Lqb564:
+	mulx	64(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 64(%rdi)
+.Lqb565:
+	mulx	72(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 72(%rdi)
+.Lqb566:
+	mulx	80(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 80(%rdi)
+.Lqb567:
+	mulx	88(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 88(%rdi)
+.Lqb568:
+	mulx	96(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 96(%rdi)
+.Lqb569:
+	mulx	104(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 104(%rdi)
+.Lqb570:
+	mulx	112(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 112(%rdi)
+.Lqb571:
+	mulx	120(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 120(%rdi)
+	mov	$0, %eax
+	adcx	%rax, %rcx
+	adox	%rax, %rcx
+	lea	128(%rdi), %rdi
+	lea	128(%rsi), %rsi
+	lea	128(%r10), %r10
+	lea	128(%r11), %r11
+	cmp	8(%rsp), %rdi
+	je	.Lqe429
 	.p2align	4
-.Lqst510:
+.Lqst574:
 	add	$0x7f, %bl
 	mov	$1, %eax
 	adcx	%r9, %rax
@@ -6684,73 +7720,221 @@ gtc_div15_lsh_n:
 	not	%rbx
 	adox	%rbx, %r8
 	mov	%r8, 56(%rdi)
+	mov	64(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 8 */
+	not	%rax
+	mov	64(%rsi), %r8
+	adcx	%rax, %r8
+	mov	64(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 64(%rdi)
+	mov	72(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 9 */
+	not	%rax
+	mov	72(%rsi), %r8
+	adcx	%rax, %r8
+	mov	72(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 72(%rdi)
+	mov	80(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 10 */
+	not	%rax
+	mov	80(%rsi), %r8
+	adcx	%rax, %r8
+	mov	80(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 80(%rdi)
+	mov	88(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 11 */
+	not	%rax
+	mov	88(%rsi), %r8
+	adcx	%rax, %r8
+	mov	88(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 88(%rdi)
+	mov	96(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 12 */
+	not	%rax
+	mov	96(%rsi), %r8
+	adcx	%rax, %r8
+	mov	96(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 96(%rdi)
+	mov	104(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 13 */
+	not	%rax
+	mov	104(%rsi), %r8
+	adcx	%rax, %r8
+	mov	104(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 104(%rdi)
+	mov	112(%r10), %r13
+	shrx	%rdx, %r14, %rax
+	lea	(%rax,%r13,4), %rax	/* 4 y, limb 14 */
+	not	%rax
+	mov	112(%rsi), %r8
+	adcx	%rax, %r8
+	mov	112(%r11), %r15
+	shrx	%r9, %rbp, %rbx
+	lea	(%rbx,%r15,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 112(%rdi)
+	mov	120(%r10), %r14
+	shrx	%rdx, %r13, %rax
+	lea	(%rax,%r14,4), %rax	/* 4 y, limb 15 */
+	not	%rax
+	mov	120(%rsi), %r8
+	adcx	%rax, %r8
+	mov	120(%r11), %rbp
+	shrx	%r9, %r15, %rbx
+	lea	(%rbx,%rbp,8), %rbx	/* 8 z */
+	not	%rbx
+	adox	%rbx, %r8
+	mov	%r8, 120(%rdi)
 	seto	%bl
 	sbb	%r9, %r9
 	movabs	$0x1111111111111111, %rdx	/* (B-1)/15 */
+	test	%r12, %r12		/* CF = OF = 0 */
 	mulx	0(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	8(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	8(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
 	mulx	16(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	24(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	24(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
 	mulx	32(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 32(%rdi)
-	sbb	%r8, %r12
-	mulx	40(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	40(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 40(%rdi)
-	sbb	%r8, %r12
 	mulx	48(%rdi), %rax, %r8
-	sub	%rax, %r12
+	adcx	%rcx, %rax
+	adox	%rax, %r12
 	mov	%r12, 48(%rdi)
-	sbb	%r8, %r12
-	mulx	56(%rdi), %rax, %r8
-	sub	%rax, %r12
+	mulx	56(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
 	mov	%r12, 56(%rdi)
-	sbb	%r8, %r12
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%r10), %r10
-	lea	64(%r11), %r11
-	dec	%rcx
-	jnz	.Lqst510
+	mulx	64(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 64(%rdi)
+	mulx	72(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 72(%rdi)
+	mulx	80(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 80(%rdi)
+	mulx	88(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 88(%rdi)
+	mulx	96(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 96(%rdi)
+	mulx	104(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 104(%rdi)
+	mulx	112(%rdi), %rax, %r8
+	adcx	%rcx, %rax
+	adox	%rax, %r12
+	mov	%r12, 112(%rdi)
+	mulx	120(%rdi), %rax, %rcx
+	adcx	%r8, %rax
+	adox	%rax, %r12
+	mov	%r12, 120(%rdi)
+	mov	$0, %eax
+	adcx	%rax, %rcx
+	adox	%rax, %rcx
+	lea	128(%rdi), %rdi
+	lea	128(%rsi), %rsi
+	lea	128(%r10), %r10
+	lea	128(%r11), %r11
+	cmp	8(%rsp), %rdi
+	jne	.Lqst574
 	jmp	.Lqe429
 	.p2align	2
-.Lqta508:
-	.long	.Lqa492 - .Lqta508
-	.long	.Lqa493 - .Lqta508
-	.long	.Lqa494 - .Lqta508
-	.long	.Lqa495 - .Lqta508
-	.long	.Lqa496 - .Lqta508
-	.long	.Lqa497 - .Lqta508
-	.long	.Lqa498 - .Lqta508
-	.long	.Lqa499 - .Lqta508
+.Lqta572:
+	.long	.Lqa540 - .Lqta572
+	.long	.Lqa541 - .Lqta572
+	.long	.Lqa542 - .Lqta572
+	.long	.Lqa543 - .Lqta572
+	.long	.Lqa544 - .Lqta572
+	.long	.Lqa545 - .Lqta572
+	.long	.Lqa546 - .Lqta572
+	.long	.Lqa547 - .Lqta572
+	.long	.Lqa548 - .Lqta572
+	.long	.Lqa549 - .Lqta572
+	.long	.Lqa550 - .Lqta572
+	.long	.Lqa551 - .Lqta572
+	.long	.Lqa552 - .Lqta572
+	.long	.Lqa553 - .Lqta572
+	.long	.Lqa554 - .Lqta572
+	.long	.Lqa555 - .Lqta572
 	.p2align	2
-.Lqtb509:
-	.long	.Lqb500 - .Lqtb509
-	.long	.Lqb501 - .Lqtb509
-	.long	.Lqb502 - .Lqtb509
-	.long	.Lqb503 - .Lqtb509
-	.long	.Lqb504 - .Lqtb509
-	.long	.Lqb505 - .Lqtb509
-	.long	.Lqb506 - .Lqtb509
-	.long	.Lqb507 - .Lqtb509
+.Lqtb573:
+	.long	.Lqb556 - .Lqtb573
+	.long	.Lqb557 - .Lqtb573
+	.long	.Lqb558 - .Lqtb573
+	.long	.Lqb559 - .Lqtb573
+	.long	.Lqb560 - .Lqtb573
+	.long	.Lqb561 - .Lqtb573
+	.long	.Lqb562 - .Lqtb573
+	.long	.Lqb563 - .Lqtb573
+	.long	.Lqb564 - .Lqtb573
+	.long	.Lqb565 - .Lqtb573
+	.long	.Lqb566 - .Lqtb573
+	.long	.Lqb567 - .Lqtb573
+	.long	.Lqb568 - .Lqtb573
+	.long	.Lqb569 - .Lqtb573
+	.long	.Lqb570 - .Lqtb573
+	.long	.Lqb571 - .Lqtb573
 .Lqz428:
 	xor	%r12d, %r12d
 .Lqe429:
 	mov	%r12, %rax
-	add	$8, %rsp
+	add	$16, %rsp
 	pop	%r15
 	pop	%r14
 	pop	%r13
@@ -6758,7 +7942,7 @@ gtc_div15_lsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-	.size	gtc_div15_lsh_n, .-gtc_div15_lsh_n
+	.size	gtc_div15n_lsh_n, .-gtc_div15n_lsh_n
 #endif
 #if defined (__znver1__) || defined (__znver2__) || defined (__znver3__) || defined (__znver4__) || defined (__znver5__)
 /* gtc_addlsh123_n: see the header (aaa).  */
@@ -6783,7 +7967,7 @@ gtc_addlsh123_n:
 	movq	$0, 56(%rsp)
 	movq	$0, 64(%rsp)
 	test	$1, %r9b
-	jz	.Lhs511
+	jz	.Lhs575
 	mov	0(%r8), %rax
 	cmpb	$0x81, 8(%rsp)
 	mov	$0, %r15
@@ -6815,9 +7999,9 @@ gtc_addlsh123_n:
 	lea	8(%rdx), %rdx
 	lea	8(%rcx), %rcx
 	lea	8(%r8), %r8
-.Lhs511:
+.Lhs575:
 	test	$2, %r9b
-	jz	.Lhs512
+	jz	.Lhs576
 	mov	0(%r8), %rax
 	mov	8(%r8), %rbx
 	cmpb	$0x81, 8(%rsp)
@@ -6857,9 +8041,9 @@ gtc_addlsh123_n:
 	lea	16(%rdx), %rdx
 	lea	16(%rcx), %rcx
 	lea	16(%r8), %r8
-.Lhs512:
+.Lhs576:
 	test	$4, %r9b
-	jz	.Lhs513
+	jz	.Lhs577
 	mov	0(%r8), %rax
 	mov	8(%r8), %rbx
 	mov	16(%r8), %rbp
@@ -6915,11 +8099,11 @@ gtc_addlsh123_n:
 	lea	32(%rdx), %rdx
 	lea	32(%rcx), %rcx
 	lea	32(%r8), %r8
-.Lhs513:
+.Lhs577:
 	shr	$3, %r9
-	jz	.Lhle515
+	jz	.Lhle579
 	.p2align	4
-.Lhll514:
+.Lhll578:
 	mov	0(%r8), %rax
 	mov	8(%r8), %rbx
 	mov	16(%r8), %rbp
@@ -7008,8 +8192,8 @@ gtc_addlsh123_n:
 	lea	64(%rcx), %rcx
 	lea	64(%r8), %r8
 	sub	$1, %r9
-	jnz	.Lhll514
-.Lhle515:
+	jnz	.Lhll578
+.Lhle579:
 	xor	%eax, %eax
 	add	%rax, %rax
 	sub	0(%rsp), %rax
@@ -7057,7 +8241,7 @@ gtc_addlsh123_n:
 	movq	$1, 16(%rsp)	/* 1 - CF */
 	movq	$1, 32(%rsp)	/* 1 - CF */
 	test	$1, %r9b
-	jz	.Lhs516
+	jz	.Lhs580
 	mov	0(%r8), %rax
 	cmpb	$0x81, 8(%rsp)
 	mov	$0, %r15
@@ -7085,9 +8269,9 @@ gtc_addlsh123_n:
 	lea	8(%rdx), %rdx
 	lea	8(%rcx), %rcx
 	lea	8(%r8), %r8
-.Lhs516:
+.Lhs580:
 	test	$2, %r9b
-	jz	.Lhs517
+	jz	.Lhs581
 	mov	0(%r8), %rax
 	mov	8(%r8), %rbx
 	cmpb	$0x81, 8(%rsp)
@@ -7123,9 +8307,9 @@ gtc_addlsh123_n:
 	lea	16(%rdx), %rdx
 	lea	16(%rcx), %rcx
 	lea	16(%r8), %r8
-.Lhs517:
+.Lhs581:
 	test	$4, %r9b
-	jz	.Lhs518
+	jz	.Lhs582
 	mov	0(%r8), %rax
 	mov	8(%r8), %rbx
 	mov	16(%r8), %rbp
@@ -7177,11 +8361,11 @@ gtc_addlsh123_n:
 	lea	32(%rdx), %rdx
 	lea	32(%rcx), %rcx
 	lea	32(%r8), %r8
-.Lhs518:
+.Lhs582:
 	shr	$3, %r9
-	jz	.Lhle520
+	jz	.Lhle584
 	.p2align	4
-.Lhll519:
+.Lhll583:
 	mov	0(%r8), %rax
 	mov	8(%r8), %rbx
 	mov	16(%r8), %rbp
@@ -7266,8 +8450,8 @@ gtc_addlsh123_n:
 	lea	64(%rcx), %rcx
 	lea	64(%r8), %r8
 	sub	$1, %r9
-	jnz	.Lhll519
-.Lhle520:
+	jnz	.Lhll583
+.Lhle584:
 	xor	%eax, %eax
 	add	%rax, %rax
 	sub	0(%rsp), %rax
@@ -7309,7 +8493,7 @@ gtc_aorslsh1_n:
 	lea	7(%r8), %rcx
 	shr	$3, %rcx		/* groups, the first one partial */
 	test	%rcx, %rcx
-	jz	.Lzero521
+	jz	.Lzero585
 	neg	%r8
 	and	$7, %r8d		/* the steps the first group skips */
 	lea	(,%r8,8), %r11
@@ -7317,52 +8501,52 @@ gtc_aorslsh1_n:
 	sub	%r11, %rsi
 	sub	%r11, %rdx
 	test	$1, %r9b
-	jnz	.Ls1_524
-	jmp	.Lv00_522
-.Ls1_524:
-	jmp	.Lv10_523
-.Lv00_522:
-	lea	.Lt534(%rip), %rax
+	jnz	.Ls1_588
+	jmp	.Lv00_586
+.Ls1_588:
+	jmp	.Lv10_587
+.Lv00_586:
+	lea	.Lt598(%rip), %rax
 	movslq	(%rax,%r8,4), %r11
 	add	%r11, %rax
 	xor	%r11d, %r11d		/* CF = OF = 0 */
 	jmp	*%rax
-.Le526:
+.Le590:
 	mov	0(%rdx), %rax
 	adcx	%rax, %rax
 	adox	0(%rsi), %rax
 	mov	%rax, 0(%rdi)
-.Le527:
+.Le591:
 	mov	8(%rdx), %rax
 	adcx	%rax, %rax
 	adox	8(%rsi), %rax
 	mov	%rax, 8(%rdi)
-.Le528:
+.Le592:
 	mov	16(%rdx), %rax
 	adcx	%rax, %rax
 	adox	16(%rsi), %rax
 	mov	%rax, 16(%rdi)
-.Le529:
+.Le593:
 	mov	24(%rdx), %rax
 	adcx	%rax, %rax
 	adox	24(%rsi), %rax
 	mov	%rax, 24(%rdi)
-.Le530:
+.Le594:
 	mov	32(%rdx), %rax
 	adcx	%rax, %rax
 	adox	32(%rsi), %rax
 	mov	%rax, 32(%rdi)
-.Le531:
+.Le595:
 	mov	40(%rdx), %rax
 	adcx	%rax, %rax
 	adox	40(%rsi), %rax
 	mov	%rax, 40(%rdi)
-.Le532:
+.Le596:
 	mov	48(%rdx), %rax
 	adcx	%rax, %rax
 	adox	48(%rsi), %rax
 	mov	%rax, 48(%rdi)
-.Le533:
+.Le597:
 	mov	56(%rdx), %rax
 	adcx	%rax, %rax
 	adox	56(%rsi), %rax
@@ -7371,71 +8555,71 @@ gtc_aorslsh1_n:
 	lea	64(%rsi), %rsi
 	lea	64(%rdx), %rdx
 	lea	-1(%rcx), %rcx
-	jrcxz	.Ld535
-	jmp	.Le526
-.Ld535:
-	jmp	.Lend525
+	jrcxz	.Ld599
+	jmp	.Le590
+.Ld599:
+	jmp	.Lend589
 	.p2align	2
-.Lt534:
-	.long	.Le526 - .Lt534
-	.long	.Le527 - .Lt534
-	.long	.Le528 - .Lt534
-	.long	.Le529 - .Lt534
-	.long	.Le530 - .Lt534
-	.long	.Le531 - .Lt534
-	.long	.Le532 - .Lt534
-	.long	.Le533 - .Lt534
-.Lv10_523:
-	lea	.Lt544(%rip), %rax
+.Lt598:
+	.long	.Le590 - .Lt598
+	.long	.Le591 - .Lt598
+	.long	.Le592 - .Lt598
+	.long	.Le593 - .Lt598
+	.long	.Le594 - .Lt598
+	.long	.Le595 - .Lt598
+	.long	.Le596 - .Lt598
+	.long	.Le597 - .Lt598
+.Lv10_587:
+	lea	.Lt608(%rip), %rax
 	movslq	(%rax,%r8,4), %r11
 	add	%r11, %rax
 	xor	%r11d, %r11d		/* CF = OF = 0 */
 	mov	$0x7fffffffffffffff, %r11
 	add	$1, %r11		/* OF = 1, CF = 0 */
 	jmp	*%rax
-.Le536:
+.Le600:
 	mov	0(%rdx), %rax
 	adcx	%rax, %rax
 	not	%rax
 	adox	0(%rsi), %rax
 	mov	%rax, 0(%rdi)
-.Le537:
+.Le601:
 	mov	8(%rdx), %rax
 	adcx	%rax, %rax
 	not	%rax
 	adox	8(%rsi), %rax
 	mov	%rax, 8(%rdi)
-.Le538:
+.Le602:
 	mov	16(%rdx), %rax
 	adcx	%rax, %rax
 	not	%rax
 	adox	16(%rsi), %rax
 	mov	%rax, 16(%rdi)
-.Le539:
+.Le603:
 	mov	24(%rdx), %rax
 	adcx	%rax, %rax
 	not	%rax
 	adox	24(%rsi), %rax
 	mov	%rax, 24(%rdi)
-.Le540:
+.Le604:
 	mov	32(%rdx), %rax
 	adcx	%rax, %rax
 	not	%rax
 	adox	32(%rsi), %rax
 	mov	%rax, 32(%rdi)
-.Le541:
+.Le605:
 	mov	40(%rdx), %rax
 	adcx	%rax, %rax
 	not	%rax
 	adox	40(%rsi), %rax
 	mov	%rax, 40(%rdi)
-.Le542:
+.Le606:
 	mov	48(%rdx), %rax
 	adcx	%rax, %rax
 	not	%rax
 	adox	48(%rsi), %rax
 	mov	%rax, 48(%rdi)
-.Le543:
+.Le607:
 	mov	56(%rdx), %rax
 	adcx	%rax, %rax
 	not	%rax
@@ -7445,9 +8629,9 @@ gtc_aorslsh1_n:
 	lea	64(%rsi), %rsi
 	lea	64(%rdx), %rdx
 	lea	-1(%rcx), %rcx
-	jrcxz	.Ld545
-	jmp	.Le536
-.Ld545:
+	jrcxz	.Ld609
+	jmp	.Le600
+.Ld609:
 	setc	%al
 	seto	%cl
 	movzbl	%al, %eax
@@ -7456,19 +8640,19 @@ gtc_aorslsh1_n:
 	add	$1, %rax
 	ret
 	.p2align	2
-.Lt544:
-	.long	.Le536 - .Lt544
-	.long	.Le537 - .Lt544
-	.long	.Le538 - .Lt544
-	.long	.Le539 - .Lt544
-	.long	.Le540 - .Lt544
-	.long	.Le541 - .Lt544
-	.long	.Le542 - .Lt544
-	.long	.Le543 - .Lt544
-.Lzero521:
+.Lt608:
+	.long	.Le600 - .Lt608
+	.long	.Le601 - .Lt608
+	.long	.Le602 - .Lt608
+	.long	.Le603 - .Lt608
+	.long	.Le604 - .Lt608
+	.long	.Le605 - .Lt608
+	.long	.Le606 - .Lt608
+	.long	.Le607 - .Lt608
+.Lzero585:
 	xor	%eax, %eax
 	ret
-.Lend525:
+.Lend589:
 	setc	%al
 	seto	%cl
 	movzbl	%al, %eax
@@ -7500,11 +8684,11 @@ gtc_div5_lsh_n:
 	xor	%r13d, %r13d		/* the limb below y: 0 */
 	xor	%r9d, %r9d		/* the sum's chain, parked: 0 or ~0 */
 	test	$1, %r8b
-	jnz	.Ld5s548
-.Ld5a547:
+	jnz	.Ld5s612
+.Ld5a611:
 	cmp	8(%rsp), %rdi
-	je	.Ld5g551
-.Ld5o549:
+	je	.Ld5g615
+.Ld5o613:
 	neg	%r9
 	mov	(%r10), %r14
 	shrx	%r15, %r13, %rax
@@ -7521,11 +8705,11 @@ gtc_div5_lsh_n:
 	lea	8(%r10), %r10
 	lea	8(%rdi), %rdi
 	cmp	8(%rsp), %rdi
-	jne	.Ld5o549
-.Ld5g551:
+	jne	.Ld5o613
+.Ld5g615:
 	cmp	(%rsp), %rdi
-	je	.Ld5e546
-.Ld5f550:
+	je	.Ld5e610
+.Ld5f614:
 	neg	%r9
 	mov	0(%r10), %r14
 	shrx	%r15, %r13, %rax
@@ -7568,12 +8752,12 @@ gtc_div5_lsh_n:
 	lea	32(%r10), %r10
 	lea	32(%rdi), %rdi
 	cmp	(%rsp), %rdi
-	jne	.Ld5f550
-	jmp	.Ld5e546
-.Ld5s548:
+	jne	.Ld5f614
+	jmp	.Ld5e610
+.Ld5s612:
 	cmp	8(%rsp), %rdi
-	je	.Ld5g554
-.Ld5o552:
+	je	.Ld5g618
+.Ld5o616:
 	neg	%r9
 	mov	(%r10), %r14
 	shrx	%r15, %r13, %rax
@@ -7590,11 +8774,11 @@ gtc_div5_lsh_n:
 	lea	8(%r10), %r10
 	lea	8(%rdi), %rdi
 	cmp	8(%rsp), %rdi
-	jne	.Ld5o552
-.Ld5g554:
+	jne	.Ld5o616
+.Ld5g618:
 	cmp	(%rsp), %rdi
-	je	.Ld5e546
-.Ld5f553:
+	je	.Ld5e610
+.Ld5f617:
 	neg	%r9
 	mov	0(%r10), %r14
 	shrx	%r15, %r13, %rax
@@ -7637,9 +8821,9 @@ gtc_div5_lsh_n:
 	lea	32(%r10), %r10
 	lea	32(%rdi), %rdi
 	cmp	(%rsp), %rdi
-	jne	.Ld5f553
-	jmp	.Ld5e546
-.Ld5e546:
+	jne	.Ld5f617
+	jmp	.Ld5e610
+.Ld5e610:
 	mov	%r12, %rax
 	add	$16, %rsp
 	pop	%r15
@@ -7650,11 +8834,12 @@ gtc_div5_lsh_n:
 	pop	%rbx
 	ret
 	.size	gtc_div5_lsh_n, .-gtc_div5_lsh_n
-/* gtc_div5_rlsh_n: see the header.  */
-	.globl	gtc_div5_rlsh_n
-	.type	gtc_div5_rlsh_n, @function
+#if !(defined (__znver1__) || defined (__znver2__) || defined (__znver3__) || defined (__znver4__) || defined (__znver5__))
+/* gtc_div5n_rlsh_n: see the header.  */
+	.globl	gtc_div5n_rlsh_n
+	.type	gtc_div5n_rlsh_n, @function
 	.p2align	5
-gtc_div5_rlsh_n:
+gtc_div5n_rlsh_n:
 	push	%rbx
 	push	%rbp
 	push	%r12
@@ -7666,15 +8851,16 @@ gtc_div5_rlsh_n:
 	and	$3, %ecx
 	lea	(%rdi,%rcx,8), %r14	/* the end of the n mod 4 limbs */
 	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
-	xor	%r12d, %r12d		/* h */
+	xor	%r12d, %r12d		/* R */
 	xor	%r13d, %r13d		/* the limb below y: 0 */
 	xor	%r9d, %r9d		/* the sum's chain, parked: 0 or ~0 */
 	test	$1, %r8b
-	jnz	.Lr5s557
-.Lr5a556:
+	jnz	.Lr5s621
+.Lr5a620:
+	xor	%r8d, %r8d		/* the high limb before: 0 */
 	cmp	%r14, %rdi
-	je	.Lr5g560
-.Lr5o558:
+	je	.Lr5g624
+.Lr5o622:
 	mov	(%r10), %rbx
 	mov	%rbx, %rbp
 	shld	$2, %r13, %rbx	/* 4 y */
@@ -7682,19 +8868,23 @@ gtc_div5_rlsh_n:
 	neg	%r9
 	adc	(%rsi), %rbx
 	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
+	xor	%eax, %eax		/* CF = OF = 0 */
+	mulx	%rbx, %rbx, %rbp
+	adcx	%r8, %rbx
+	adox	%rbx, %r12		/* -q */
 	mov	%r12, (%rdi)
-	sbb	%r8, %r12
+	adcx	%rax, %rbp		/* both carries in */
+	adox	%rax, %rbp
+	mov	%rbp, %r8
 	lea	8(%rsi), %rsi
 	lea	8(%r10), %r10
 	lea	8(%rdi), %rdi
 	cmp	%r14, %rdi
-	jne	.Lr5o558
-.Lr5g560:
+	jne	.Lr5o622
+.Lr5g624:
 	cmp	%r15, %rdi
-	je	.Lr5e555
-.Lr5f559:
+	je	.Lr5e619
+.Lr5f623:
 	mov	0(%r10), %rbx
 	mov	8(%r10), %rbp
 	mov	16(%r10), %r11
@@ -7711,32 +8901,36 @@ gtc_div5_rlsh_n:
 	adc	16(%rsi), %r11
 	adc	24(%rsi), %rcx
 	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
+	xor	%eax, %eax		/* CF = OF = 0 */
+	mulx	%rbx, %rbx, %r14
+	adcx	%r8, %rbx
+	adox	%rbx, %r12		/* -q */
 	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
+	mulx	%rbp, %rbp, %r8
+	adcx	%r14, %rbp
+	adox	%rbp, %r12		/* -q */
 	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
+	mulx	%r11, %r11, %r14
+	adcx	%r8, %r11
+	adox	%r11, %r12		/* -q */
 	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
+	mulx	%rcx, %rcx, %r8
+	adcx	%r14, %rcx
+	adox	%rcx, %r12		/* -q */
 	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
+	adcx	%rax, %r8		/* both carries in */
+	adox	%rax, %r8
 	lea	32(%rsi), %rsi
 	lea	32(%r10), %r10
 	lea	32(%rdi), %rdi
 	cmp	%r15, %rdi
-	jne	.Lr5f559
-	jmp	.Lr5e555
-.Lr5s557:
+	jne	.Lr5f623
+	jmp	.Lr5e619
+.Lr5s621:
+	xor	%r8d, %r8d		/* the high limb before: 0 */
 	cmp	%r14, %rdi
-	je	.Lr5g563
-.Lr5o561:
+	je	.Lr5g627
+.Lr5o625:
 	mov	(%r10), %rbx
 	mov	%rbx, %rbp
 	shld	$2, %r13, %rbx	/* 4 y */
@@ -7744,19 +8938,23 @@ gtc_div5_rlsh_n:
 	neg	%r9
 	sbb	(%rsi), %rbx
 	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
+	xor	%eax, %eax		/* CF = OF = 0 */
+	mulx	%rbx, %rbx, %rbp
+	adcx	%r8, %rbx
+	adox	%rbx, %r12		/* -q */
 	mov	%r12, (%rdi)
-	sbb	%r8, %r12
+	adcx	%rax, %rbp		/* both carries in */
+	adox	%rax, %rbp
+	mov	%rbp, %r8
 	lea	8(%rsi), %rsi
 	lea	8(%r10), %r10
 	lea	8(%rdi), %rdi
 	cmp	%r14, %rdi
-	jne	.Lr5o561
-.Lr5g563:
+	jne	.Lr5o625
+.Lr5g627:
 	cmp	%r15, %rdi
-	je	.Lr5e555
-.Lr5f562:
+	je	.Lr5e619
+.Lr5f626:
 	mov	0(%r10), %rbx
 	mov	8(%r10), %rbp
 	mov	16(%r10), %r11
@@ -7773,29 +8971,32 @@ gtc_div5_rlsh_n:
 	sbb	16(%rsi), %r11
 	sbb	24(%rsi), %rcx
 	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
+	xor	%eax, %eax		/* CF = OF = 0 */
+	mulx	%rbx, %rbx, %r14
+	adcx	%r8, %rbx
+	adox	%rbx, %r12		/* -q */
 	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
+	mulx	%rbp, %rbp, %r8
+	adcx	%r14, %rbp
+	adox	%rbp, %r12		/* -q */
 	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
+	mulx	%r11, %r11, %r14
+	adcx	%r8, %r11
+	adox	%r11, %r12		/* -q */
 	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
+	mulx	%rcx, %rcx, %r8
+	adcx	%r14, %rcx
+	adox	%rcx, %r12		/* -q */
 	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
+	adcx	%rax, %r8		/* both carries in */
+	adox	%rax, %r8
 	lea	32(%rsi), %rsi
 	lea	32(%r10), %r10
 	lea	32(%rdi), %rdi
 	cmp	%r15, %rdi
-	jne	.Lr5f562
-	jmp	.Lr5e555
-.Lr5e555:
+	jne	.Lr5f626
+	jmp	.Lr5e619
+.Lr5e619:
 	mov	%r12, %rax
 	pop	%r15
 	pop	%r14
@@ -7804,7 +9005,8 @@ gtc_div5_rlsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-	.size	gtc_div5_rlsh_n, .-gtc_div5_rlsh_n
+	.size	gtc_div5n_rlsh_n, .-gtc_div5n_rlsh_n
+#endif
 /* {rp, n} +-= v {up, n}; returns the high limb or the borrow.
    See the header.  */
 	.globl	gtc_aorsmul_1
@@ -7816,56 +9018,56 @@ gtc_aorsmul_1:
 	lea	7(%r9), %rcx
 	shr	$3, %rcx		/* groups, the first one partial */
 	test	%rcx, %rcx
-	jz	.Lzero564
+	jz	.Lzero628
 	neg	%r9
 	and	$7, %r9d		/* the steps the first group skips */
 	lea	(,%r9,8), %rax
 	sub	%rax, %rdi
 	sub	%rax, %rsi
 	test	$1, %r8b
-	jnz	.Ls1_565
-	lea	.Lt574(%rip), %rax
+	jnz	.Ls1_629
+	lea	.Lt638(%rip), %rax
 	movslq	(%rax,%r9,4), %r8
 	add	%r8, %rax
 	xor	%r10d, %r10d
 	xor	%r11d, %r11d		/* CF = OF = 0 */
 	jmp	*%rax
-.Le566:
+.Le630:
 	mulx	0(%rsi), %rax, %r10
 	adcx	%r11, %rax
 	adox	0(%rdi), %rax
 	mov	%rax, 0(%rdi)
-.Le567:
+.Le631:
 	mulx	8(%rsi), %rax, %r11
 	adcx	%r10, %rax
 	adox	8(%rdi), %rax
 	mov	%rax, 8(%rdi)
-.Le568:
+.Le632:
 	mulx	16(%rsi), %rax, %r10
 	adcx	%r11, %rax
 	adox	16(%rdi), %rax
 	mov	%rax, 16(%rdi)
-.Le569:
+.Le633:
 	mulx	24(%rsi), %rax, %r11
 	adcx	%r10, %rax
 	adox	24(%rdi), %rax
 	mov	%rax, 24(%rdi)
-.Le570:
+.Le634:
 	mulx	32(%rsi), %rax, %r10
 	adcx	%r11, %rax
 	adox	32(%rdi), %rax
 	mov	%rax, 32(%rdi)
-.Le571:
+.Le635:
 	mulx	40(%rsi), %rax, %r11
 	adcx	%r10, %rax
 	adox	40(%rdi), %rax
 	mov	%rax, 40(%rdi)
-.Le572:
+.Le636:
 	mulx	48(%rsi), %rax, %r10
 	adcx	%r11, %rax
 	adox	48(%rdi), %rax
 	mov	%rax, 48(%rdi)
-.Le573:
+.Le637:
 	mulx	56(%rsi), %rax, %r11
 	adcx	%r10, %rax
 	adox	56(%rdi), %rax
@@ -7873,9 +9075,9 @@ gtc_aorsmul_1:
 	lea	64(%rdi), %rdi
 	lea	64(%rsi), %rsi
 	lea	-1(%rcx), %rcx
-	jrcxz	.Ld575
-	jmp	.Le566
-.Ld575:
+	jrcxz	.Ld639
+	jmp	.Le630
+.Ld639:
 	mov	$0, %eax
 	adcx	%r11, %rax
 	seto	%cl
@@ -7883,17 +9085,17 @@ gtc_aorsmul_1:
 	add	%rcx, %rax
 	ret
 	.p2align	2
-.Lt574:
-	.long	.Le566 - .Lt574
-	.long	.Le567 - .Lt574
-	.long	.Le568 - .Lt574
-	.long	.Le569 - .Lt574
-	.long	.Le570 - .Lt574
-	.long	.Le571 - .Lt574
-	.long	.Le572 - .Lt574
-	.long	.Le573 - .Lt574
-.Ls1_565:
-	lea	.Lt584(%rip), %rax
+.Lt638:
+	.long	.Le630 - .Lt638
+	.long	.Le631 - .Lt638
+	.long	.Le632 - .Lt638
+	.long	.Le633 - .Lt638
+	.long	.Le634 - .Lt638
+	.long	.Le635 - .Lt638
+	.long	.Le636 - .Lt638
+	.long	.Le637 - .Lt638
+.Ls1_629:
+	lea	.Lt648(%rip), %rax
 	movslq	(%rax,%r9,4), %r8
 	add	%r8, %rax
 	xor	%r10d, %r10d
@@ -7901,49 +9103,49 @@ gtc_aorsmul_1:
 	mov	$0x7fffffffffffffff, %r8
 	add	$1, %r8		/* OF = 1, CF = 0 */
 	jmp	*%rax
-.Le576:
+.Le640:
 	mulx	0(%rsi), %rax, %r10
 	adcx	%r11, %rax
 	not	%rax
 	adox	0(%rdi), %rax
 	mov	%rax, 0(%rdi)
-.Le577:
+.Le641:
 	mulx	8(%rsi), %rax, %r11
 	adcx	%r10, %rax
 	not	%rax
 	adox	8(%rdi), %rax
 	mov	%rax, 8(%rdi)
-.Le578:
+.Le642:
 	mulx	16(%rsi), %rax, %r10
 	adcx	%r11, %rax
 	not	%rax
 	adox	16(%rdi), %rax
 	mov	%rax, 16(%rdi)
-.Le579:
+.Le643:
 	mulx	24(%rsi), %rax, %r11
 	adcx	%r10, %rax
 	not	%rax
 	adox	24(%rdi), %rax
 	mov	%rax, 24(%rdi)
-.Le580:
+.Le644:
 	mulx	32(%rsi), %rax, %r10
 	adcx	%r11, %rax
 	not	%rax
 	adox	32(%rdi), %rax
 	mov	%rax, 32(%rdi)
-.Le581:
+.Le645:
 	mulx	40(%rsi), %rax, %r11
 	adcx	%r10, %rax
 	not	%rax
 	adox	40(%rdi), %rax
 	mov	%rax, 40(%rdi)
-.Le582:
+.Le646:
 	mulx	48(%rsi), %rax, %r10
 	adcx	%r11, %rax
 	not	%rax
 	adox	48(%rdi), %rax
 	mov	%rax, 48(%rdi)
-.Le583:
+.Le647:
 	mulx	56(%rsi), %rax, %r11
 	adcx	%r10, %rax
 	not	%rax
@@ -7952,9 +9154,9 @@ gtc_aorsmul_1:
 	lea	64(%rdi), %rdi
 	lea	64(%rsi), %rsi
 	lea	-1(%rcx), %rcx
-	jrcxz	.Ld585
-	jmp	.Le576
-.Ld585:
+	jrcxz	.Ld649
+	jmp	.Le640
+.Ld649:
 	mov	$0, %eax
 	adcx	%r11, %rax
 	seto	%cl
@@ -7963,16 +9165,16 @@ gtc_aorsmul_1:
 	add	$1, %rax
 	ret
 	.p2align	2
-.Lt584:
-	.long	.Le576 - .Lt584
-	.long	.Le577 - .Lt584
-	.long	.Le578 - .Lt584
-	.long	.Le579 - .Lt584
-	.long	.Le580 - .Lt584
-	.long	.Le581 - .Lt584
-	.long	.Le582 - .Lt584
-	.long	.Le583 - .Lt584
-.Lzero564:
+.Lt648:
+	.long	.Le640 - .Lt648
+	.long	.Le641 - .Lt648
+	.long	.Le642 - .Lt648
+	.long	.Le643 - .Lt648
+	.long	.Le644 - .Lt648
+	.long	.Le645 - .Lt648
+	.long	.Le646 - .Lt648
+	.long	.Le647 - .Lt648
+.Lzero628:
 	xor	%eax, %eax
 	ret
 	.size	gtc_aorsmul_1, .-gtc_aorsmul_1
@@ -8139,362 +9341,6 @@ gtc_rsh2sub_n:
 	pop	%rbx
 	ret
 	.size	gtc_rsh2sub_n, .-gtc_rsh2sub_n
-	.globl	gtc_rsh2add3_n
-	.type	gtc_rsh2add3_n, @function
-	.p2align	5
-gtc_rsh2add3_n:
-	push	%rbx
-	push	%r12
-	push	%r13
-	push	%r14
-	mov	%rcx, %r10		/* c */
-	mov	$2, %r12d
-	mov	$62, %r13d
-	lea	2(%r8), %rax
-	shr	$2, %rax
-	shl	$2, %rax		/* 4 g, g = ceil((n - 1) / 4) groups */
-	lea	1(%rax), %r11
-	sub	%r8, %r11		/* u0 = 4 g - n + 1, the step entered */
-	mov	(%rsi), %rbx		/* a0 */
-	mov	(%rdx), %r14		/* b0 */
-	mov	(%r10), %rcx		/* c0 */
-	lea	(%rsi,%r8,8), %rsi	/* at its end */
-	lea	(%rdx,%r8,8), %rdx	/* at its end */
-	lea	(%r10,%r8,8), %r10	/* at its end */
-	lea	(%rdi,%r8,8), %rdi	/* at its end */
-	neg	%rax			/* the index, -4 g */
-	test	%r9d, %r9d
-	jnz	.Lhfc588
-	lea	.Lhft589(%rip), %r8
-	movslq	(%r8,%r11,4), %r11
-	add	%r8, %r11
-	xor	%r8d, %r8d		/* CF = OF = 0 */
-	adox	%r14, %rbx
-	adcx	%rcx, %rbx		/* s0 */
-	mov	%rax, %rcx
-	jrcxz	.Lhfz599
-	jmp	*%r11
-.Lhfz599:
-	jmp	.Lhfo1586
-.Lhfs595:
-	mov	%rbx, %r9
-	jmp	.Lhfl591
-.Lhfs596:
-	mov	%rbx, %rax
-	jmp	.Lhfl592
-.Lhfs597:
-	jmp	.Lhfl593
-.Lhfs598:
-	mov	%rbx, %r8
-	jmp	.Lhfl594
-.Lhfl591:
-	mov	0(%rsi,%rcx,8), %rax
-	adox	0(%rdx,%rcx,8), %rax
-	adcx	0(%r10,%rcx,8), %rax
-	shrx	%r12, %r9, %r11
-	shlx	%r13, %rax, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, -8(%rdi,%rcx,8)
-.Lhfl592:
-	mov	8(%rsi,%rcx,8), %rbx
-	adox	8(%rdx,%rcx,8), %rbx
-	adcx	8(%r10,%rcx,8), %rbx
-	shrx	%r12, %rax, %r11
-	shlx	%r13, %rbx, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 0(%rdi,%rcx,8)
-.Lhfl593:
-	mov	16(%rsi,%rcx,8), %r8
-	adox	16(%rdx,%rcx,8), %r8
-	adcx	16(%r10,%rcx,8), %r8
-	shrx	%r12, %rbx, %r11
-	shlx	%r13, %r8, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 8(%rdi,%rcx,8)
-.Lhfl594:
-	mov	24(%rsi,%rcx,8), %r9
-	adox	24(%rdx,%rcx,8), %r9
-	adcx	24(%r10,%rcx,8), %r9
-	shrx	%r12, %r8, %r11
-	shlx	%r13, %r9, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 16(%rdi,%rcx,8)
-	lea	4(%rcx), %rcx
-	jrcxz	.Lhfd590
-	jmp	.Lhfl591
-.Lhfd590:
-	sar	$2, %r9
-	mov	%r9, -8(%rdi)
-	jmp	.Lhfo587
-	.p2align	2
-.Lhft589:
-	.long	.Lhfs595 - .Lhft589
-	.long	.Lhfs596 - .Lhft589
-	.long	.Lhfs597 - .Lhft589
-	.long	.Lhfs598 - .Lhft589
-.Lhfc588:
-	lea	.Lhft600(%rip), %r8
-	movslq	(%r8,%r11,4), %r11
-	add	%r8, %r11
-	not	%rbx
-	mov	$0x7f, %r8d
-	add	$1, %r8b		/* OF = 1 (the carry-in), CF = 0 */
-	adox	%r14, %rbx
-	adcx	%rcx, %rbx		/* s0 */
-	mov	%rax, %rcx
-	jrcxz	.Lhfz610
-	jmp	*%r11
-.Lhfz610:
-	jmp	.Lhfo1586
-.Lhfs606:
-	mov	%rbx, %r9
-	jmp	.Lhfl602
-.Lhfs607:
-	mov	%rbx, %rax
-	jmp	.Lhfl603
-.Lhfs608:
-	jmp	.Lhfl604
-.Lhfs609:
-	mov	%rbx, %r8
-	jmp	.Lhfl605
-.Lhfl602:
-	mov	0(%rsi,%rcx,8), %rax
-	not	%rax
-	adox	0(%rdx,%rcx,8), %rax
-	adcx	0(%r10,%rcx,8), %rax
-	shrx	%r12, %r9, %r11
-	shlx	%r13, %rax, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, -8(%rdi,%rcx,8)
-.Lhfl603:
-	mov	8(%rsi,%rcx,8), %rbx
-	not	%rbx
-	adox	8(%rdx,%rcx,8), %rbx
-	adcx	8(%r10,%rcx,8), %rbx
-	shrx	%r12, %rax, %r11
-	shlx	%r13, %rbx, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 0(%rdi,%rcx,8)
-.Lhfl604:
-	mov	16(%rsi,%rcx,8), %r8
-	not	%r8
-	adox	16(%rdx,%rcx,8), %r8
-	adcx	16(%r10,%rcx,8), %r8
-	shrx	%r12, %rbx, %r11
-	shlx	%r13, %r8, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 8(%rdi,%rcx,8)
-.Lhfl605:
-	mov	24(%rsi,%rcx,8), %r9
-	not	%r9
-	adox	24(%rdx,%rcx,8), %r9
-	adcx	24(%r10,%rcx,8), %r9
-	shrx	%r12, %r8, %r11
-	shlx	%r13, %r9, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 16(%rdi,%rcx,8)
-	lea	4(%rcx), %rcx
-	jrcxz	.Lhfd601
-	jmp	.Lhfl602
-.Lhfd601:
-	sar	$2, %r9
-	mov	%r9, -8(%rdi)
-	jmp	.Lhfo587
-	.p2align	2
-.Lhft600:
-	.long	.Lhfs606 - .Lhft600
-	.long	.Lhfs607 - .Lhft600
-	.long	.Lhfs608 - .Lhft600
-	.long	.Lhfs609 - .Lhft600
-.Lhfo1586:
-	sar	$2, %rbx
-	mov	%rbx, -8(%rdi)
-.Lhfo587:
-	xor	%eax, %eax
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbx
-	ret
-	.size	gtc_rsh2add3_n, .-gtc_rsh2add3_n
-	.globl	gtc_rsh3add3_n
-	.type	gtc_rsh3add3_n, @function
-	.p2align	5
-gtc_rsh3add3_n:
-	push	%rbx
-	push	%r12
-	push	%r13
-	push	%r14
-	mov	%rcx, %r10		/* c */
-	mov	$3, %r12d
-	mov	$61, %r13d
-	lea	2(%r8), %rax
-	shr	$2, %rax
-	shl	$2, %rax		/* 4 g, g = ceil((n - 1) / 4) groups */
-	lea	1(%rax), %r11
-	sub	%r8, %r11		/* u0 = 4 g - n + 1, the step entered */
-	mov	(%rsi), %rbx		/* a0 */
-	mov	(%rdx), %r14		/* b0 */
-	mov	(%r10), %rcx		/* c0 */
-	lea	(%rsi,%r8,8), %rsi	/* at its end */
-	lea	(%rdx,%r8,8), %rdx	/* at its end */
-	lea	(%r10,%r8,8), %r10	/* at its end */
-	lea	(%rdi,%r8,8), %rdi	/* at its end */
-	neg	%rax			/* the index, -4 g */
-	test	%r9d, %r9d
-	jnz	.Lhfc613
-	lea	.Lhft614(%rip), %r8
-	movslq	(%r8,%r11,4), %r11
-	add	%r8, %r11
-	xor	%r8d, %r8d		/* CF = OF = 0 */
-	adox	%r14, %rbx
-	adcx	%rcx, %rbx		/* s0 */
-	mov	%rax, %rcx
-	jrcxz	.Lhfz624
-	jmp	*%r11
-.Lhfz624:
-	jmp	.Lhfo1611
-.Lhfs620:
-	mov	%rbx, %r9
-	jmp	.Lhfl616
-.Lhfs621:
-	mov	%rbx, %rax
-	jmp	.Lhfl617
-.Lhfs622:
-	jmp	.Lhfl618
-.Lhfs623:
-	mov	%rbx, %r8
-	jmp	.Lhfl619
-.Lhfl616:
-	mov	0(%rsi,%rcx,8), %rax
-	adox	0(%rdx,%rcx,8), %rax
-	adcx	0(%r10,%rcx,8), %rax
-	shrx	%r12, %r9, %r11
-	shlx	%r13, %rax, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, -8(%rdi,%rcx,8)
-.Lhfl617:
-	mov	8(%rsi,%rcx,8), %rbx
-	adox	8(%rdx,%rcx,8), %rbx
-	adcx	8(%r10,%rcx,8), %rbx
-	shrx	%r12, %rax, %r11
-	shlx	%r13, %rbx, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 0(%rdi,%rcx,8)
-.Lhfl618:
-	mov	16(%rsi,%rcx,8), %r8
-	adox	16(%rdx,%rcx,8), %r8
-	adcx	16(%r10,%rcx,8), %r8
-	shrx	%r12, %rbx, %r11
-	shlx	%r13, %r8, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 8(%rdi,%rcx,8)
-.Lhfl619:
-	mov	24(%rsi,%rcx,8), %r9
-	adox	24(%rdx,%rcx,8), %r9
-	adcx	24(%r10,%rcx,8), %r9
-	shrx	%r12, %r8, %r11
-	shlx	%r13, %r9, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 16(%rdi,%rcx,8)
-	lea	4(%rcx), %rcx
-	jrcxz	.Lhfd615
-	jmp	.Lhfl616
-.Lhfd615:
-	sar	$3, %r9
-	mov	%r9, -8(%rdi)
-	jmp	.Lhfo612
-	.p2align	2
-.Lhft614:
-	.long	.Lhfs620 - .Lhft614
-	.long	.Lhfs621 - .Lhft614
-	.long	.Lhfs622 - .Lhft614
-	.long	.Lhfs623 - .Lhft614
-.Lhfc613:
-	lea	.Lhft625(%rip), %r8
-	movslq	(%r8,%r11,4), %r11
-	add	%r8, %r11
-	not	%rbx
-	mov	$0x7f, %r8d
-	add	$1, %r8b		/* OF = 1 (the carry-in), CF = 0 */
-	adox	%r14, %rbx
-	adcx	%rcx, %rbx		/* s0 */
-	mov	%rax, %rcx
-	jrcxz	.Lhfz635
-	jmp	*%r11
-.Lhfz635:
-	jmp	.Lhfo1611
-.Lhfs631:
-	mov	%rbx, %r9
-	jmp	.Lhfl627
-.Lhfs632:
-	mov	%rbx, %rax
-	jmp	.Lhfl628
-.Lhfs633:
-	jmp	.Lhfl629
-.Lhfs634:
-	mov	%rbx, %r8
-	jmp	.Lhfl630
-.Lhfl627:
-	mov	0(%rsi,%rcx,8), %rax
-	not	%rax
-	adox	0(%rdx,%rcx,8), %rax
-	adcx	0(%r10,%rcx,8), %rax
-	shrx	%r12, %r9, %r11
-	shlx	%r13, %rax, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, -8(%rdi,%rcx,8)
-.Lhfl628:
-	mov	8(%rsi,%rcx,8), %rbx
-	not	%rbx
-	adox	8(%rdx,%rcx,8), %rbx
-	adcx	8(%r10,%rcx,8), %rbx
-	shrx	%r12, %rax, %r11
-	shlx	%r13, %rbx, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 0(%rdi,%rcx,8)
-.Lhfl629:
-	mov	16(%rsi,%rcx,8), %r8
-	not	%r8
-	adox	16(%rdx,%rcx,8), %r8
-	adcx	16(%r10,%rcx,8), %r8
-	shrx	%r12, %rbx, %r11
-	shlx	%r13, %r8, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 8(%rdi,%rcx,8)
-.Lhfl630:
-	mov	24(%rsi,%rcx,8), %r9
-	not	%r9
-	adox	24(%rdx,%rcx,8), %r9
-	adcx	24(%r10,%rcx,8), %r9
-	shrx	%r12, %r8, %r11
-	shlx	%r13, %r9, %r14
-	lea	(%r11,%r14), %r11
-	mov	%r11, 16(%rdi,%rcx,8)
-	lea	4(%rcx), %rcx
-	jrcxz	.Lhfd626
-	jmp	.Lhfl627
-.Lhfd626:
-	sar	$3, %r9
-	mov	%r9, -8(%rdi)
-	jmp	.Lhfo612
-	.p2align	2
-.Lhft625:
-	.long	.Lhfs631 - .Lhft625
-	.long	.Lhfs632 - .Lhft625
-	.long	.Lhfs633 - .Lhft625
-	.long	.Lhfs634 - .Lhft625
-.Lhfo1611:
-	sar	$3, %rbx
-	mov	%rbx, -8(%rdi)
-.Lhfo612:
-	xor	%eax, %eax
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbx
-	ret
-	.size	gtc_rsh3add3_n, .-gtc_rsh3add3_n
 #else
 	.globl	gtc_rsh2add_n
 	.type	gtc_rsh2add_n, @function
@@ -8515,7 +9361,7 @@ gtc_rsh2add_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	test	$1, %cl
-	jz	.Lhb636
+	jz	.Lhb650
 	bt	$0, %rbp		/* CF back */
 	mov	0(%rsi), %rax
 	adc	0(%rdx), %rax
@@ -8526,9 +9372,9 @@ gtc_rsh2add_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	lea	8(%rdi), %rdi
-.Lhb636:
+.Lhb650:
 	test	$2, %cl
-	jz	.Lhb637
+	jz	.Lhb651
 	bt	$0, %rbp		/* CF back */
 	mov	0(%rsi), %rax
 	adc	0(%rdx), %rax
@@ -8543,9 +9389,9 @@ gtc_rsh2add_n:
 	lea	16(%rsi), %rsi
 	lea	16(%rdx), %rdx
 	lea	16(%rdi), %rdi
-.Lhb637:
+.Lhb651:
 	test	$4, %cl
-	jz	.Lhb638
+	jz	.Lhb652
 	bt	$0, %rbp		/* CF back */
 	mov	0(%rsi), %rax
 	adc	0(%rdx), %rax
@@ -8568,7 +9414,7 @@ gtc_rsh2add_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	lea	32(%rdi), %rdi
-.Lhb638:
+.Lhb652:
 	shr	$3, %rcx		/* groups of 8 */
 	jz	.Lha2d
 	.p2align	4
@@ -8645,7 +9491,7 @@ gtc_rsh2sub_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	test	$1, %cl
-	jz	.Lhb639
+	jz	.Lhb653
 	bt	$0, %rbp		/* CF back */
 	mov	0(%rsi), %rax
 	sbb	0(%rdx), %rax
@@ -8656,9 +9502,9 @@ gtc_rsh2sub_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	lea	8(%rdi), %rdi
-.Lhb639:
+.Lhb653:
 	test	$2, %cl
-	jz	.Lhb640
+	jz	.Lhb654
 	bt	$0, %rbp		/* CF back */
 	mov	0(%rsi), %rax
 	sbb	0(%rdx), %rax
@@ -8673,9 +9519,9 @@ gtc_rsh2sub_n:
 	lea	16(%rsi), %rsi
 	lea	16(%rdx), %rdx
 	lea	16(%rdi), %rdi
-.Lhb640:
+.Lhb654:
 	test	$4, %cl
-	jz	.Lhb641
+	jz	.Lhb655
 	bt	$0, %rbp		/* CF back */
 	mov	0(%rsi), %rax
 	sbb	0(%rdx), %rax
@@ -8698,7 +9544,7 @@ gtc_rsh2sub_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	lea	32(%rdi), %rdi
-.Lhb641:
+.Lhb655:
 	shr	$3, %rcx		/* groups of 8 */
 	jz	.Lhs2d
 	.p2align	4
@@ -8756,868 +9602,9 @@ gtc_rsh2sub_n:
 	pop	%rbx
 	ret
 	.size	gtc_rsh2sub_n, .-gtc_rsh2sub_n
-	.globl	gtc_rsh2add3_n
-	.type	gtc_rsh2add3_n, @function
-	.p2align	5
-gtc_rsh2add3_n:
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	mov	%rcx, %r10		/* c */
-	mov	%r9d, %ebp		/* comp */
-	lea	7(%r8), %rax
-	shr	$3, %rax		/* groups, the first one partial */
-	shl	$6, %rax
-	neg	%r8
-	and	$7, %r8d		/* the sums the first group skips */
-	lea	(,%r8,8), %rbx
-	sub	%rbx, %rdi
-	sub	%rbx, %rsi
-	sub	%rbx, %rdx
-	sub	%rbx, %r10
-	add	%rdi, %rax
-	mov	%rax, -16(%rsp)		/* where rp ends */
-	test	%ebp, %ebp
-	jnz	.Lh3c643
-	jmp	.Lh3p642
-.Lh3p642:
-	lea	.Lh3th647(%rip), %rbx
-	movslq	(%rbx,%r8,4), %r9
-	add	%rbx, %r9
-	mov	%r9, -8(%rsp)		/* where the first shifts start */
-	lea	.Lh3ts646(%rip), %rbx
-	movslq	(%rbx,%r8,4), %r9
-	add	%rbx, %r9
-	xor	%eax, %eax		/* CF's register */
-	mov	%rbp, %r8
-	add	$0x7f, %r8b		/* OF = the carry-in, CF = 0 */
-	jmp	*%r9
-.Lh3f648:
-	mov	0(%rsi), %rbx
-	adox	0(%rdx), %rbx
-	adcx	0(%r10), %rbx
-.Lh3f649:
-	mov	8(%rsi), %rbp
-	adox	8(%rdx), %rbp
-	adcx	8(%r10), %rbp
-.Lh3f650:
-	mov	16(%rsi), %r12
-	adox	16(%rdx), %r12
-	adcx	16(%r10), %r12
-.Lh3f651:
-	mov	24(%rsi), %r13
-	adox	24(%rdx), %r13
-	adcx	24(%r10), %r13
-.Lh3f652:
-	mov	32(%rsi), %r14
-	adox	32(%rdx), %r14
-	adcx	32(%r10), %r14
-.Lh3f653:
-	mov	40(%rsi), %r15
-	adox	40(%rdx), %r15
-	adcx	40(%r10), %r15
-.Lh3f654:
-	mov	48(%rsi), %r9
-	adox	48(%rdx), %r9
-	adcx	48(%r10), %r9
-.Lh3f655:
-	mov	56(%rsi), %rcx
-	adox	56(%rdx), %rcx
-	adcx	56(%r10), %rcx
-	setc	%al			/* CF to rax */
-	seto	%r8b			/* OF to F */
-	jmp	*-8(%rsp)
-.Lh3l645:
-	add	$0x7f, %r8b		/* OF back (0x7f + 1 overflows) */
-	clc				/* CF not to wait on OF's restore */
-	mov	$-1, %r8
-	adcx	%rax, %r8		/* CF back, OF kept */
-.Lh3s656:
-	mov	0(%rsi), %rbx
-	adox	0(%rdx), %rbx
-	adcx	0(%r10), %rbx
-.Lh3s657:
-	mov	8(%rsi), %rbp
-	adox	8(%rdx), %rbp
-	adcx	8(%r10), %rbp
-.Lh3s658:
-	mov	16(%rsi), %r12
-	adox	16(%rdx), %r12
-	adcx	16(%r10), %r12
-.Lh3s659:
-	mov	24(%rsi), %r13
-	adox	24(%rdx), %r13
-	adcx	24(%r10), %r13
-.Lh3s660:
-	mov	32(%rsi), %r14
-	adox	32(%rdx), %r14
-	adcx	32(%r10), %r14
-.Lh3s661:
-	mov	40(%rsi), %r15
-	adox	40(%rdx), %r15
-	adcx	40(%r10), %r15
-.Lh3s662:
-	mov	48(%rsi), %r9
-	adox	48(%rdx), %r9
-	adcx	48(%r10), %r9
-.Lh3s663:
-	mov	56(%rsi), %rcx
-	adox	56(%rdx), %rcx
-	adcx	56(%r10), %rcx
-	setc	%al			/* CF to rax */
-	seto	%r8b			/* OF to F */
-.Lh3h664:
-	shrd	$2, %rbx, %r11
-	mov	%r11, -8(%rdi)
-.Lh3h665:
-	shrd	$2, %rbp, %rbx
-	mov	%rbx, 0(%rdi)
-.Lh3h666:
-	shrd	$2, %r12, %rbp
-	mov	%rbp, 8(%rdi)
-.Lh3h667:
-	shrd	$2, %r13, %r12
-	mov	%r12, 16(%rdi)
-.Lh3h668:
-	shrd	$2, %r14, %r13
-	mov	%r13, 24(%rdi)
-.Lh3h669:
-	shrd	$2, %r15, %r14
-	mov	%r14, 32(%rdi)
-.Lh3h670:
-	shrd	$2, %r9, %r15
-	mov	%r15, 40(%rdi)
-.Lh3h671:
-	shrd	$2, %rcx, %r9
-	mov	%r9, 48(%rdi)
-.Lh3he672:
-	mov	%rcx, %r11
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%rdx), %rdx
-	lea	64(%r10), %r10
-	cmp	-16(%rsp), %rdi		/* the flags are saved */
-	jne	.Lh3l645
-	sar	$2, %r11
-	mov	%r11, -8(%rdi)
-	jmp	.Lh3e644
-	.p2align	2
-.Lh3ts646:
-	.long	.Lh3f648 - .Lh3ts646
-	.long	.Lh3f649 - .Lh3ts646
-	.long	.Lh3f650 - .Lh3ts646
-	.long	.Lh3f651 - .Lh3ts646
-	.long	.Lh3f652 - .Lh3ts646
-	.long	.Lh3f653 - .Lh3ts646
-	.long	.Lh3f654 - .Lh3ts646
-	.long	.Lh3f655 - .Lh3ts646
-.Lh3th647:
-	.long	.Lh3h665 - .Lh3th647
-	.long	.Lh3h666 - .Lh3th647
-	.long	.Lh3h667 - .Lh3th647
-	.long	.Lh3h668 - .Lh3th647
-	.long	.Lh3h669 - .Lh3th647
-	.long	.Lh3h670 - .Lh3th647
-	.long	.Lh3h671 - .Lh3th647
-	.long	.Lh3he672 - .Lh3th647
-.Lh3c643:
-	lea	.Lh3th675(%rip), %rbx
-	movslq	(%rbx,%r8,4), %r9
-	add	%rbx, %r9
-	mov	%r9, -8(%rsp)		/* where the first shifts start */
-	lea	.Lh3ts674(%rip), %rbx
-	movslq	(%rbx,%r8,4), %r9
-	add	%rbx, %r9
-	xor	%eax, %eax		/* CF's register */
-	mov	%rbp, %r8
-	add	$0x7f, %r8b		/* OF = the carry-in, CF = 0 */
-	jmp	*%r9
-.Lh3f676:
-	mov	0(%rsi), %rbx
-	not	%rbx
-	adox	0(%rdx), %rbx
-	adcx	0(%r10), %rbx
-.Lh3f677:
-	mov	8(%rsi), %rbp
-	not	%rbp
-	adox	8(%rdx), %rbp
-	adcx	8(%r10), %rbp
-.Lh3f678:
-	mov	16(%rsi), %r12
-	not	%r12
-	adox	16(%rdx), %r12
-	adcx	16(%r10), %r12
-.Lh3f679:
-	mov	24(%rsi), %r13
-	not	%r13
-	adox	24(%rdx), %r13
-	adcx	24(%r10), %r13
-.Lh3f680:
-	mov	32(%rsi), %r14
-	not	%r14
-	adox	32(%rdx), %r14
-	adcx	32(%r10), %r14
-.Lh3f681:
-	mov	40(%rsi), %r15
-	not	%r15
-	adox	40(%rdx), %r15
-	adcx	40(%r10), %r15
-.Lh3f682:
-	mov	48(%rsi), %r9
-	not	%r9
-	adox	48(%rdx), %r9
-	adcx	48(%r10), %r9
-.Lh3f683:
-	mov	56(%rsi), %rcx
-	not	%rcx
-	adox	56(%rdx), %rcx
-	adcx	56(%r10), %rcx
-	setc	%al			/* CF to rax */
-	seto	%r8b			/* OF to F */
-	jmp	*-8(%rsp)
-.Lh3l673:
-	add	$0x7f, %r8b		/* OF back (0x7f + 1 overflows) */
-	clc				/* CF not to wait on OF's restore */
-	mov	$-1, %r8
-	adcx	%rax, %r8		/* CF back, OF kept */
-.Lh3s684:
-	mov	0(%rsi), %rbx
-	not	%rbx
-	adox	0(%rdx), %rbx
-	adcx	0(%r10), %rbx
-.Lh3s685:
-	mov	8(%rsi), %rbp
-	not	%rbp
-	adox	8(%rdx), %rbp
-	adcx	8(%r10), %rbp
-.Lh3s686:
-	mov	16(%rsi), %r12
-	not	%r12
-	adox	16(%rdx), %r12
-	adcx	16(%r10), %r12
-.Lh3s687:
-	mov	24(%rsi), %r13
-	not	%r13
-	adox	24(%rdx), %r13
-	adcx	24(%r10), %r13
-.Lh3s688:
-	mov	32(%rsi), %r14
-	not	%r14
-	adox	32(%rdx), %r14
-	adcx	32(%r10), %r14
-.Lh3s689:
-	mov	40(%rsi), %r15
-	not	%r15
-	adox	40(%rdx), %r15
-	adcx	40(%r10), %r15
-.Lh3s690:
-	mov	48(%rsi), %r9
-	not	%r9
-	adox	48(%rdx), %r9
-	adcx	48(%r10), %r9
-.Lh3s691:
-	mov	56(%rsi), %rcx
-	not	%rcx
-	adox	56(%rdx), %rcx
-	adcx	56(%r10), %rcx
-	setc	%al			/* CF to rax */
-	seto	%r8b			/* OF to F */
-.Lh3h692:
-	shrd	$2, %rbx, %r11
-	mov	%r11, -8(%rdi)
-.Lh3h693:
-	shrd	$2, %rbp, %rbx
-	mov	%rbx, 0(%rdi)
-.Lh3h694:
-	shrd	$2, %r12, %rbp
-	mov	%rbp, 8(%rdi)
-.Lh3h695:
-	shrd	$2, %r13, %r12
-	mov	%r12, 16(%rdi)
-.Lh3h696:
-	shrd	$2, %r14, %r13
-	mov	%r13, 24(%rdi)
-.Lh3h697:
-	shrd	$2, %r15, %r14
-	mov	%r14, 32(%rdi)
-.Lh3h698:
-	shrd	$2, %r9, %r15
-	mov	%r15, 40(%rdi)
-.Lh3h699:
-	shrd	$2, %rcx, %r9
-	mov	%r9, 48(%rdi)
-.Lh3he700:
-	mov	%rcx, %r11
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%rdx), %rdx
-	lea	64(%r10), %r10
-	cmp	-16(%rsp), %rdi		/* the flags are saved */
-	jne	.Lh3l673
-	sar	$2, %r11
-	mov	%r11, -8(%rdi)
-	jmp	.Lh3e644
-	.p2align	2
-.Lh3ts674:
-	.long	.Lh3f676 - .Lh3ts674
-	.long	.Lh3f677 - .Lh3ts674
-	.long	.Lh3f678 - .Lh3ts674
-	.long	.Lh3f679 - .Lh3ts674
-	.long	.Lh3f680 - .Lh3ts674
-	.long	.Lh3f681 - .Lh3ts674
-	.long	.Lh3f682 - .Lh3ts674
-	.long	.Lh3f683 - .Lh3ts674
-.Lh3th675:
-	.long	.Lh3h693 - .Lh3th675
-	.long	.Lh3h694 - .Lh3th675
-	.long	.Lh3h695 - .Lh3th675
-	.long	.Lh3h696 - .Lh3th675
-	.long	.Lh3h697 - .Lh3th675
-	.long	.Lh3h698 - .Lh3th675
-	.long	.Lh3h699 - .Lh3th675
-	.long	.Lh3he700 - .Lh3th675
-.Lh3e644:
-	xor	%eax, %eax
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-	ret
-	.size	gtc_rsh2add3_n, .-gtc_rsh2add3_n
-	.globl	gtc_rsh3add3_n
-	.type	gtc_rsh3add3_n, @function
-	.p2align	5
-gtc_rsh3add3_n:
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	mov	%rcx, %r10		/* c */
-	mov	%r9d, %ebp		/* comp */
-	lea	7(%r8), %rax
-	shr	$3, %rax		/* groups, the first one partial */
-	shl	$6, %rax
-	neg	%r8
-	and	$7, %r8d		/* the sums the first group skips */
-	lea	(,%r8,8), %rbx
-	sub	%rbx, %rdi
-	sub	%rbx, %rsi
-	sub	%rbx, %rdx
-	sub	%rbx, %r10
-	add	%rdi, %rax
-	mov	%rax, -16(%rsp)		/* where rp ends */
-	test	%ebp, %ebp
-	jnz	.Lh3c702
-	jmp	.Lh3p701
-.Lh3p701:
-	lea	.Lh3th706(%rip), %rbx
-	movslq	(%rbx,%r8,4), %r9
-	add	%rbx, %r9
-	mov	%r9, -8(%rsp)		/* where the first shifts start */
-	lea	.Lh3ts705(%rip), %rbx
-	movslq	(%rbx,%r8,4), %r9
-	add	%rbx, %r9
-	xor	%eax, %eax		/* CF's register */
-	mov	%rbp, %r8
-	add	$0x7f, %r8b		/* OF = the carry-in, CF = 0 */
-	jmp	*%r9
-.Lh3f707:
-	mov	0(%rsi), %rbx
-	adox	0(%rdx), %rbx
-	adcx	0(%r10), %rbx
-.Lh3f708:
-	mov	8(%rsi), %rbp
-	adox	8(%rdx), %rbp
-	adcx	8(%r10), %rbp
-.Lh3f709:
-	mov	16(%rsi), %r12
-	adox	16(%rdx), %r12
-	adcx	16(%r10), %r12
-.Lh3f710:
-	mov	24(%rsi), %r13
-	adox	24(%rdx), %r13
-	adcx	24(%r10), %r13
-.Lh3f711:
-	mov	32(%rsi), %r14
-	adox	32(%rdx), %r14
-	adcx	32(%r10), %r14
-.Lh3f712:
-	mov	40(%rsi), %r15
-	adox	40(%rdx), %r15
-	adcx	40(%r10), %r15
-.Lh3f713:
-	mov	48(%rsi), %r9
-	adox	48(%rdx), %r9
-	adcx	48(%r10), %r9
-.Lh3f714:
-	mov	56(%rsi), %rcx
-	adox	56(%rdx), %rcx
-	adcx	56(%r10), %rcx
-	setc	%al			/* CF to rax */
-	seto	%r8b			/* OF to F */
-	jmp	*-8(%rsp)
-.Lh3l704:
-	add	$0x7f, %r8b		/* OF back (0x7f + 1 overflows) */
-	clc				/* CF not to wait on OF's restore */
-	mov	$-1, %r8
-	adcx	%rax, %r8		/* CF back, OF kept */
-.Lh3s715:
-	mov	0(%rsi), %rbx
-	adox	0(%rdx), %rbx
-	adcx	0(%r10), %rbx
-.Lh3s716:
-	mov	8(%rsi), %rbp
-	adox	8(%rdx), %rbp
-	adcx	8(%r10), %rbp
-.Lh3s717:
-	mov	16(%rsi), %r12
-	adox	16(%rdx), %r12
-	adcx	16(%r10), %r12
-.Lh3s718:
-	mov	24(%rsi), %r13
-	adox	24(%rdx), %r13
-	adcx	24(%r10), %r13
-.Lh3s719:
-	mov	32(%rsi), %r14
-	adox	32(%rdx), %r14
-	adcx	32(%r10), %r14
-.Lh3s720:
-	mov	40(%rsi), %r15
-	adox	40(%rdx), %r15
-	adcx	40(%r10), %r15
-.Lh3s721:
-	mov	48(%rsi), %r9
-	adox	48(%rdx), %r9
-	adcx	48(%r10), %r9
-.Lh3s722:
-	mov	56(%rsi), %rcx
-	adox	56(%rdx), %rcx
-	adcx	56(%r10), %rcx
-	setc	%al			/* CF to rax */
-	seto	%r8b			/* OF to F */
-.Lh3h723:
-	shrd	$3, %rbx, %r11
-	mov	%r11, -8(%rdi)
-.Lh3h724:
-	shrd	$3, %rbp, %rbx
-	mov	%rbx, 0(%rdi)
-.Lh3h725:
-	shrd	$3, %r12, %rbp
-	mov	%rbp, 8(%rdi)
-.Lh3h726:
-	shrd	$3, %r13, %r12
-	mov	%r12, 16(%rdi)
-.Lh3h727:
-	shrd	$3, %r14, %r13
-	mov	%r13, 24(%rdi)
-.Lh3h728:
-	shrd	$3, %r15, %r14
-	mov	%r14, 32(%rdi)
-.Lh3h729:
-	shrd	$3, %r9, %r15
-	mov	%r15, 40(%rdi)
-.Lh3h730:
-	shrd	$3, %rcx, %r9
-	mov	%r9, 48(%rdi)
-.Lh3he731:
-	mov	%rcx, %r11
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%rdx), %rdx
-	lea	64(%r10), %r10
-	cmp	-16(%rsp), %rdi		/* the flags are saved */
-	jne	.Lh3l704
-	sar	$3, %r11
-	mov	%r11, -8(%rdi)
-	jmp	.Lh3e703
-	.p2align	2
-.Lh3ts705:
-	.long	.Lh3f707 - .Lh3ts705
-	.long	.Lh3f708 - .Lh3ts705
-	.long	.Lh3f709 - .Lh3ts705
-	.long	.Lh3f710 - .Lh3ts705
-	.long	.Lh3f711 - .Lh3ts705
-	.long	.Lh3f712 - .Lh3ts705
-	.long	.Lh3f713 - .Lh3ts705
-	.long	.Lh3f714 - .Lh3ts705
-.Lh3th706:
-	.long	.Lh3h724 - .Lh3th706
-	.long	.Lh3h725 - .Lh3th706
-	.long	.Lh3h726 - .Lh3th706
-	.long	.Lh3h727 - .Lh3th706
-	.long	.Lh3h728 - .Lh3th706
-	.long	.Lh3h729 - .Lh3th706
-	.long	.Lh3h730 - .Lh3th706
-	.long	.Lh3he731 - .Lh3th706
-.Lh3c702:
-	lea	.Lh3th734(%rip), %rbx
-	movslq	(%rbx,%r8,4), %r9
-	add	%rbx, %r9
-	mov	%r9, -8(%rsp)		/* where the first shifts start */
-	lea	.Lh3ts733(%rip), %rbx
-	movslq	(%rbx,%r8,4), %r9
-	add	%rbx, %r9
-	xor	%eax, %eax		/* CF's register */
-	mov	%rbp, %r8
-	add	$0x7f, %r8b		/* OF = the carry-in, CF = 0 */
-	jmp	*%r9
-.Lh3f735:
-	mov	0(%rsi), %rbx
-	not	%rbx
-	adox	0(%rdx), %rbx
-	adcx	0(%r10), %rbx
-.Lh3f736:
-	mov	8(%rsi), %rbp
-	not	%rbp
-	adox	8(%rdx), %rbp
-	adcx	8(%r10), %rbp
-.Lh3f737:
-	mov	16(%rsi), %r12
-	not	%r12
-	adox	16(%rdx), %r12
-	adcx	16(%r10), %r12
-.Lh3f738:
-	mov	24(%rsi), %r13
-	not	%r13
-	adox	24(%rdx), %r13
-	adcx	24(%r10), %r13
-.Lh3f739:
-	mov	32(%rsi), %r14
-	not	%r14
-	adox	32(%rdx), %r14
-	adcx	32(%r10), %r14
-.Lh3f740:
-	mov	40(%rsi), %r15
-	not	%r15
-	adox	40(%rdx), %r15
-	adcx	40(%r10), %r15
-.Lh3f741:
-	mov	48(%rsi), %r9
-	not	%r9
-	adox	48(%rdx), %r9
-	adcx	48(%r10), %r9
-.Lh3f742:
-	mov	56(%rsi), %rcx
-	not	%rcx
-	adox	56(%rdx), %rcx
-	adcx	56(%r10), %rcx
-	setc	%al			/* CF to rax */
-	seto	%r8b			/* OF to F */
-	jmp	*-8(%rsp)
-.Lh3l732:
-	add	$0x7f, %r8b		/* OF back (0x7f + 1 overflows) */
-	clc				/* CF not to wait on OF's restore */
-	mov	$-1, %r8
-	adcx	%rax, %r8		/* CF back, OF kept */
-.Lh3s743:
-	mov	0(%rsi), %rbx
-	not	%rbx
-	adox	0(%rdx), %rbx
-	adcx	0(%r10), %rbx
-.Lh3s744:
-	mov	8(%rsi), %rbp
-	not	%rbp
-	adox	8(%rdx), %rbp
-	adcx	8(%r10), %rbp
-.Lh3s745:
-	mov	16(%rsi), %r12
-	not	%r12
-	adox	16(%rdx), %r12
-	adcx	16(%r10), %r12
-.Lh3s746:
-	mov	24(%rsi), %r13
-	not	%r13
-	adox	24(%rdx), %r13
-	adcx	24(%r10), %r13
-.Lh3s747:
-	mov	32(%rsi), %r14
-	not	%r14
-	adox	32(%rdx), %r14
-	adcx	32(%r10), %r14
-.Lh3s748:
-	mov	40(%rsi), %r15
-	not	%r15
-	adox	40(%rdx), %r15
-	adcx	40(%r10), %r15
-.Lh3s749:
-	mov	48(%rsi), %r9
-	not	%r9
-	adox	48(%rdx), %r9
-	adcx	48(%r10), %r9
-.Lh3s750:
-	mov	56(%rsi), %rcx
-	not	%rcx
-	adox	56(%rdx), %rcx
-	adcx	56(%r10), %rcx
-	setc	%al			/* CF to rax */
-	seto	%r8b			/* OF to F */
-.Lh3h751:
-	shrd	$3, %rbx, %r11
-	mov	%r11, -8(%rdi)
-.Lh3h752:
-	shrd	$3, %rbp, %rbx
-	mov	%rbx, 0(%rdi)
-.Lh3h753:
-	shrd	$3, %r12, %rbp
-	mov	%rbp, 8(%rdi)
-.Lh3h754:
-	shrd	$3, %r13, %r12
-	mov	%r12, 16(%rdi)
-.Lh3h755:
-	shrd	$3, %r14, %r13
-	mov	%r13, 24(%rdi)
-.Lh3h756:
-	shrd	$3, %r15, %r14
-	mov	%r14, 32(%rdi)
-.Lh3h757:
-	shrd	$3, %r9, %r15
-	mov	%r15, 40(%rdi)
-.Lh3h758:
-	shrd	$3, %rcx, %r9
-	mov	%r9, 48(%rdi)
-.Lh3he759:
-	mov	%rcx, %r11
-	lea	64(%rdi), %rdi
-	lea	64(%rsi), %rsi
-	lea	64(%rdx), %rdx
-	lea	64(%r10), %r10
-	cmp	-16(%rsp), %rdi		/* the flags are saved */
-	jne	.Lh3l732
-	sar	$3, %r11
-	mov	%r11, -8(%rdi)
-	jmp	.Lh3e703
-	.p2align	2
-.Lh3ts733:
-	.long	.Lh3f735 - .Lh3ts733
-	.long	.Lh3f736 - .Lh3ts733
-	.long	.Lh3f737 - .Lh3ts733
-	.long	.Lh3f738 - .Lh3ts733
-	.long	.Lh3f739 - .Lh3ts733
-	.long	.Lh3f740 - .Lh3ts733
-	.long	.Lh3f741 - .Lh3ts733
-	.long	.Lh3f742 - .Lh3ts733
-.Lh3th734:
-	.long	.Lh3h752 - .Lh3th734
-	.long	.Lh3h753 - .Lh3th734
-	.long	.Lh3h754 - .Lh3th734
-	.long	.Lh3h755 - .Lh3th734
-	.long	.Lh3h756 - .Lh3th734
-	.long	.Lh3h757 - .Lh3th734
-	.long	.Lh3h758 - .Lh3th734
-	.long	.Lh3he759 - .Lh3th734
-.Lh3e703:
-	xor	%eax, %eax
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-	ret
-	.size	gtc_rsh3add3_n, .-gtc_rsh3add3_n
 #endif
-/* gtc_div5_add_n: see the header.  */
-	.globl	gtc_div5_add_n
-	.type	gtc_div5_add_n, @function
 	.p2align	5
-gtc_div5_add_n:
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	mov	%rcx, %r13
-	shr	$2, %r13		/* blocks of 4 */
-	mov	%rcx, %r15
-	and	$3, %r15d		/* the rest */
-	movabs	$0x3333333333333333, %r10	/* (B-1)/5 */
-	xor	%r12d, %r12d		/* h */
-	xor	%r9d, %r9d		/* the sum's chain, parked: 0 or ~0 */
-	mov	%rdx, %r14		/* yp */
-	mov	%r10, %rdx
-	cmp	$1, %r8d
-	je	.La5s762
-	ja	.La5r763
-.La5a761:
-	test	%r15, %r15
-	je	.La5g766
-.La5o764:
-	neg	%r9
-	mov	(%rsi), %rbx
-	adc	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	dec	%r15
-	jnz	.La5o764
-.La5g766:
-	test	%r13, %r13
-	je	.La5e760
-	.p2align	4
-.La5f765:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	adc	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	adc	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	adc	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	adc	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	dec	%r13
-	jnz	.La5f765
-	jmp	.La5e760
-.La5s762:
-	test	%r15, %r15
-	je	.La5g769
-.La5o767:
-	neg	%r9
-	mov	(%rsi), %rbx
-	sbb	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	dec	%r15
-	jnz	.La5o767
-.La5g769:
-	test	%r13, %r13
-	je	.La5e760
-	.p2align	4
-.La5f768:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	sbb	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	sbb	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	sbb	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	sbb	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	dec	%r13
-	jnz	.La5f768
-	jmp	.La5e760
-.La5r763:
-	test	%r15, %r15
-	je	.La5g772
-.La5o770:
-	neg	%r9
-	mov	(%r14), %rbx
-	sbb	(%rsi), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	dec	%r15
-	jnz	.La5o770
-.La5g772:
-	test	%r13, %r13
-	je	.La5e760
-	.p2align	4
-.La5f771:
-	neg	%r9
-	mov	0(%r14), %rbx
-	sbb	0(%rsi), %rbx
-	mov	8(%r14), %rbp
-	sbb	8(%rsi), %rbp
-	mov	16(%r14), %r11
-	sbb	16(%rsi), %r11
-	mov	24(%r14), %rcx
-	sbb	24(%rsi), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	dec	%r13
-	jnz	.La5f771
-	jmp	.La5e760
-.La5e760:
-	mov	%r12, %rax
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-	ret
-	.size	gtc_div5_add_n, .-gtc_div5_add_n
+	.skip	32, 0xcc
 	.globl	gtc_t5r_n
 	.type	gtc_t5r_n, @function
 	.p2align	5
@@ -9648,12 +9635,12 @@ gtc_t5r_n:
 	and	$1, %eax
 	xor	$1, %eax		/* 1 - b */
 	test	$4, %r9b
-	jnz	.Lt5n773
+	jnz	.Lt5n656
 	mov	$1, %r9d
 	neg	%rax			/* CF = 1 - b, OF = 0 */
 	adox	%r9, %rbx		/* OF = 1 - c */
 	.p2align	4
-.Lt5l775:
+.Lt5l658:
 	mov	0(%r10,%rcx,8), %r12
 	shrx	%r11, %r13, %rbx
 	lea	(%rbx,%r12,4), %r9	/* 4 x4 */
@@ -9707,16 +9694,16 @@ gtc_t5r_n:
 	adox	%rax, %rbp
 	mov	%rbp, 24(%rsi,%rcx,8)
 	lea	4(%rcx), %rcx
-	jrcxz	.Lt5d776
-	jmp	.Lt5l775
-.Lt5d776:
-	jmp	.Lt5o774
-.Lt5n773:
+	jrcxz	.Lt5d659
+	jmp	.Lt5l658
+.Lt5d659:
+	jmp	.Lt5o657
+.Lt5n656:
 	mov	$1, %r9d
 	neg	%rax			/* CF = 1 - b, OF = 0 */
 	adox	%r9, %rbx		/* OF = 1 - c */
 	.p2align	4
-.Lt5l777:
+.Lt5l660:
 	mov	0(%r10,%rcx,8), %r12
 	shrx	%r11, %r13, %rbx
 	lea	(%rbx,%r12,4), %r9	/* 4 x4 */
@@ -9770,10 +9757,10 @@ gtc_t5r_n:
 	adox	%r9, %rbp
 	mov	%rbp, 24(%rsi,%rcx,8)
 	lea	4(%rcx), %rcx
-	jrcxz	.Lt5d778
-	jmp	.Lt5l777
-.Lt5d778:
-.Lt5o774:
+	jrcxz	.Lt5d661
+	jmp	.Lt5l660
+.Lt5d661:
+.Lt5o657:
 	setc	%al
 	seto	%bl
 	movzbl	%al, %eax
@@ -9789,1422 +9776,8 @@ gtc_t5r_n:
 	pop	%rbx
 	ret
 	.size	gtc_t5r_n, .-gtc_t5r_n
-/* gtc_div5_add_sub_n: see the header.  */
-	.globl	gtc_div5_add_sub_n
-	.type	gtc_div5_add_sub_n, @function
 	.p2align	5
-gtc_div5_add_sub_n:
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	sub	$8, %rsp		/* (%rsp): the rest */
-	mov	%rcx, %r13
-	shr	$2, %r13		/* blocks of 4 */
-	and	$3, %ecx
-	mov	%rcx, (%rsp)
-	mov	%r9, %r15		/* sp */
-	xor	%r12d, %r12d		/* h */
-	xor	%r9d, %r9d		/* the sum's chain, parked: 0 or ~0 */
-	xor	%r10d, %r10d		/* z - q's chain, parked */
-	mov	%rdx, %r14		/* yp */
-	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
-	mov	%r8d, %eax
-	and	$3, %eax
-	test	$4, %r8b
-	jnz	.La5sz786
-	cmp	$1, %eax
-	je	.La5sp782
-	ja	.La5sp784
-	jmp	.La5sp780
-.La5sz786:
-	cmp	$1, %eax
-	je	.La5sp783
-	ja	.La5sp785
-	jmp	.La5sp781
-.La5sp780:
-	cmpq	$0, (%rsp)
-	je	.La5sg789
-.La5so787:
-	neg	%r9
-	mov	(%rsi), %rbx
-	adc	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%rsi), %rbx
-	sbb	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so787
-.La5sg789:
-	test	%r13, %r13
-	je	.La5se779
-	.p2align	4
-.La5sf788:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	adc	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	adc	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	adc	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	adc	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%rsi), %rbx
-	sbb	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%rsi), %rbp
-	sbb	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%rsi), %r11
-	sbb	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%rsi), %rcx
-	sbb	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf788
-	jmp	.La5se779
-.La5sp781:
-	cmpq	$0, (%rsp)
-	je	.La5sg792
-.La5so790:
-	neg	%r9
-	mov	(%rsi), %rbx
-	adc	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%r14), %rbx
-	sbb	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so790
-.La5sg792:
-	test	%r13, %r13
-	je	.La5se779
-	.p2align	4
-.La5sf791:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	adc	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	adc	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	adc	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	adc	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%r14), %rbx
-	sbb	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%r14), %rbp
-	sbb	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%r14), %r11
-	sbb	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%r14), %rcx
-	sbb	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf791
-	jmp	.La5se779
-.La5sp782:
-	cmpq	$0, (%rsp)
-	je	.La5sg795
-.La5so793:
-	neg	%r9
-	mov	(%rsi), %rbx
-	sbb	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%rsi), %rbx
-	sbb	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so793
-.La5sg795:
-	test	%r13, %r13
-	je	.La5se779
-	.p2align	4
-.La5sf794:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	sbb	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	sbb	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	sbb	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	sbb	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%rsi), %rbx
-	sbb	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%rsi), %rbp
-	sbb	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%rsi), %r11
-	sbb	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%rsi), %rcx
-	sbb	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf794
-	jmp	.La5se779
-.La5sp783:
-	cmpq	$0, (%rsp)
-	je	.La5sg798
-.La5so796:
-	neg	%r9
-	mov	(%rsi), %rbx
-	sbb	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%r14), %rbx
-	sbb	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so796
-.La5sg798:
-	test	%r13, %r13
-	je	.La5se779
-	.p2align	4
-.La5sf797:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	sbb	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	sbb	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	sbb	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	sbb	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%r14), %rbx
-	sbb	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%r14), %rbp
-	sbb	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%r14), %r11
-	sbb	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%r14), %rcx
-	sbb	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf797
-	jmp	.La5se779
-.La5sp784:
-	cmpq	$0, (%rsp)
-	je	.La5sg801
-.La5so799:
-	neg	%r9
-	mov	(%r14), %rbx
-	sbb	(%rsi), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%rsi), %rbx
-	sbb	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so799
-.La5sg801:
-	test	%r13, %r13
-	je	.La5se779
-	.p2align	4
-.La5sf800:
-	neg	%r9
-	mov	0(%r14), %rbx
-	sbb	0(%rsi), %rbx
-	mov	8(%r14), %rbp
-	sbb	8(%rsi), %rbp
-	mov	16(%r14), %r11
-	sbb	16(%rsi), %r11
-	mov	24(%r14), %rcx
-	sbb	24(%rsi), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%rsi), %rbx
-	sbb	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%rsi), %rbp
-	sbb	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%rsi), %r11
-	sbb	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%rsi), %rcx
-	sbb	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf800
-	jmp	.La5se779
-.La5sp785:
-	cmpq	$0, (%rsp)
-	je	.La5sg804
-.La5so802:
-	neg	%r9
-	mov	(%r14), %rbx
-	sbb	(%rsi), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%r14), %rbx
-	sbb	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so802
-.La5sg804:
-	test	%r13, %r13
-	je	.La5se779
-	.p2align	4
-.La5sf803:
-	neg	%r9
-	mov	0(%r14), %rbx
-	sbb	0(%rsi), %rbx
-	mov	8(%r14), %rbp
-	sbb	8(%rsi), %rbp
-	mov	16(%r14), %r11
-	sbb	16(%rsi), %r11
-	mov	24(%r14), %rcx
-	sbb	24(%rsi), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%r14), %rbx
-	sbb	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%r14), %rbp
-	sbb	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%r14), %r11
-	sbb	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%r14), %rcx
-	sbb	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf803
-	jmp	.La5se779
-.La5se779:
-	mov	%r12, %rax
-	add	$8, %rsp
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-	ret
-	.size	gtc_div5_add_sub_n, .-gtc_div5_add_sub_n
-/* gtc_div5_add_acc_n: see the header.  */
-	.globl	gtc_div5_add_acc_n
-	.type	gtc_div5_add_acc_n, @function
-	.p2align	5
-gtc_div5_add_acc_n:
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	sub	$8, %rsp		/* (%rsp): the rest */
-	mov	%rcx, %r13
-	shr	$2, %r13		/* blocks of 4 */
-	and	$3, %ecx
-	mov	%rcx, (%rsp)
-	mov	%r9, %r15		/* sp */
-	xor	%r12d, %r12d		/* h */
-	xor	%r9d, %r9d		/* the sum's chain, parked: 0 or ~0 */
-	xor	%r10d, %r10d		/* z - q's chain, parked */
-	mov	%rdx, %r14		/* yp */
-	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
-	mov	%r8d, %eax
-	and	$3, %eax
-	test	$4, %r8b
-	jnz	.La5sz812
-	cmp	$1, %eax
-	je	.La5sp808
-	ja	.La5sp810
-	jmp	.La5sp806
-.La5sz812:
-	cmp	$1, %eax
-	je	.La5sp809
-	ja	.La5sp811
-	jmp	.La5sp807
-.La5sp806:
-	cmpq	$0, (%rsp)
-	je	.La5sg815
-.La5so813:
-	neg	%r9
-	mov	(%rsi), %rbx
-	adc	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%r15), %rbx
-	adc	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so813
-.La5sg815:
-	test	%r13, %r13
-	je	.La5se805
-	.p2align	4
-.La5sf814:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	adc	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	adc	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	adc	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	adc	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%r15), %rbx
-	adc	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%r15), %rbp
-	adc	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%r15), %r11
-	adc	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%r15), %rcx
-	adc	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf814
-	jmp	.La5se805
-.La5sp807:
-	cmpq	$0, (%rsp)
-	je	.La5sg818
-.La5so816:
-	neg	%r9
-	mov	(%rsi), %rbx
-	adc	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%r15), %rbx
-	sbb	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so816
-.La5sg818:
-	test	%r13, %r13
-	je	.La5se805
-	.p2align	4
-.La5sf817:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	adc	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	adc	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	adc	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	adc	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%r15), %rbx
-	sbb	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%r15), %rbp
-	sbb	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%r15), %r11
-	sbb	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%r15), %rcx
-	sbb	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf817
-	jmp	.La5se805
-.La5sp808:
-	cmpq	$0, (%rsp)
-	je	.La5sg821
-.La5so819:
-	neg	%r9
-	mov	(%rsi), %rbx
-	sbb	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%r15), %rbx
-	adc	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so819
-.La5sg821:
-	test	%r13, %r13
-	je	.La5se805
-	.p2align	4
-.La5sf820:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	sbb	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	sbb	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	sbb	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	sbb	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%r15), %rbx
-	adc	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%r15), %rbp
-	adc	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%r15), %r11
-	adc	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%r15), %rcx
-	adc	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf820
-	jmp	.La5se805
-.La5sp809:
-	cmpq	$0, (%rsp)
-	je	.La5sg824
-.La5so822:
-	neg	%r9
-	mov	(%rsi), %rbx
-	sbb	(%r14), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%r15), %rbx
-	sbb	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so822
-.La5sg824:
-	test	%r13, %r13
-	je	.La5se805
-	.p2align	4
-.La5sf823:
-	neg	%r9
-	mov	0(%rsi), %rbx
-	sbb	0(%r14), %rbx
-	mov	8(%rsi), %rbp
-	sbb	8(%r14), %rbp
-	mov	16(%rsi), %r11
-	sbb	16(%r14), %r11
-	mov	24(%rsi), %rcx
-	sbb	24(%r14), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%r15), %rbx
-	sbb	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%r15), %rbp
-	sbb	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%r15), %r11
-	sbb	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%r15), %rcx
-	sbb	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf823
-	jmp	.La5se805
-.La5sp810:
-	cmpq	$0, (%rsp)
-	je	.La5sg827
-.La5so825:
-	neg	%r9
-	mov	(%r14), %rbx
-	sbb	(%rsi), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%r15), %rbx
-	adc	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so825
-.La5sg827:
-	test	%r13, %r13
-	je	.La5se805
-	.p2align	4
-.La5sf826:
-	neg	%r9
-	mov	0(%r14), %rbx
-	sbb	0(%rsi), %rbx
-	mov	8(%r14), %rbp
-	sbb	8(%rsi), %rbp
-	mov	16(%r14), %r11
-	sbb	16(%rsi), %r11
-	mov	24(%r14), %rcx
-	sbb	24(%rsi), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%r15), %rbx
-	adc	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%r15), %rbp
-	adc	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%r15), %r11
-	adc	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%r15), %rcx
-	adc	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf826
-	jmp	.La5se805
-.La5sp811:
-	cmpq	$0, (%rsp)
-	je	.La5sg830
-.La5so828:
-	neg	%r9
-	mov	(%r14), %rbx
-	sbb	(%rsi), %rbx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, (%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	(%r15), %rbx
-	sbb	(%rdi), %rbx
-	mov	%rbx, (%r15)
-	sbb	%r10, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%r14), %r14
-	lea	8(%rdi), %rdi
-	lea	8(%r15), %r15
-	subq	$1, (%rsp)
-	jnz	.La5so828
-.La5sg830:
-	test	%r13, %r13
-	je	.La5se805
-	.p2align	4
-.La5sf829:
-	neg	%r9
-	mov	0(%r14), %rbx
-	sbb	0(%rsi), %rbx
-	mov	8(%r14), %rbp
-	sbb	8(%rsi), %rbp
-	mov	16(%r14), %r11
-	sbb	16(%rsi), %r11
-	mov	24(%r14), %rcx
-	sbb	24(%rsi), %rcx
-	sbb	%r9, %r9
-	mulx	%rbx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 0(%rdi)
-	sbb	%r8, %r12
-	mulx	%rbp, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 8(%rdi)
-	sbb	%r8, %r12
-	mulx	%r11, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 16(%rdi)
-	sbb	%r8, %r12
-	mulx	%rcx, %rax, %r8
-	sub	%rax, %r12
-	mov	%r12, 24(%rdi)
-	sbb	%r8, %r12
-	neg	%r10
-	mov	0(%r15), %rbx
-	sbb	0(%rdi), %rbx
-	mov	%rbx, 0(%r15)
-	mov	8(%r15), %rbp
-	sbb	8(%rdi), %rbp
-	mov	%rbp, 8(%r15)
-	mov	16(%r15), %r11
-	sbb	16(%rdi), %r11
-	mov	%r11, 16(%r15)
-	mov	24(%r15), %rcx
-	sbb	24(%rdi), %rcx
-	mov	%rcx, 24(%r15)
-	sbb	%r10, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%r14), %r14
-	lea	32(%rdi), %rdi
-	lea	32(%r15), %r15
-	dec	%r13
-	jnz	.La5sf829
-	jmp	.La5se805
-.La5se805:
-	mov	%r10, %rax
-	neg	%rax			/* the third chain's carry */
-	add	$8, %rsp
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-	ret
-	.size	gtc_div5_add_acc_n, .-gtc_div5_add_acc_n
-#if defined (__znver1__) || defined (__znver2__) || defined (__znver3__) || defined (__znver4__) || defined (__znver5__)
-	.globl	gtc_rsh3add_n
-	.type	gtc_rsh3add_n, @function
-	.p2align	5
-gtc_rsh3add_n:
-	push	%rbx
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	mov	$3, %r12d
-	mov	$61, %r13d
-	lea	-1(%rcx), %r9		/* n - 1 limbs after the first */
-	mov	%r9, %rax
-	shr	$2, %r9		/* groups of 4 */
-	and	$3, %eax		/* single steps */
-	mov	%rax, %rcx
-	mov	(%rsi), %r10
-	add	(%rdx), %r10	/* s0 */
-	mov	%r10, %r8		/* the bit shifted out: s0 & 1 */
-	lea	8(%rsi), %rsi
-	lea	8(%rdx), %rdx
-	jrcxz	.Lha3se
-.Lha3s:
-	mov	0(%rsi), %rax
-	adc	0(%rdx), %rax
-	shrx	%r12, %r10, %r11
-	shlx	%r13, %rax, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 0(%rdi)
-	mov	%rax, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%rdx), %rdx
-	lea	8(%rdi), %rdi
-	dec	%rcx			/* dec leaves CF alone */
-	jnz	.Lha3s
-.Lha3se:
-	mov	%r9, %rcx
-	jrcxz	.Lha3d
-.Lha3u:
-	mov	0(%rsi), %rax
-	adc	0(%rdx), %rax
-	shrx	%r12, %r10, %r11
-	shlx	%r13, %rax, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 0(%rdi)
-	mov	8(%rsi), %rbx
-	adc	8(%rdx), %rbx
-	shrx	%r12, %rax, %r11
-	shlx	%r13, %rbx, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 8(%rdi)
-	mov	16(%rsi), %r14
-	adc	16(%rdx), %r14
-	shrx	%r12, %rbx, %r11
-	shlx	%r13, %r14, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 16(%rdi)
-	mov	24(%rsi), %r10
-	adc	24(%rdx), %r10
-	shrx	%r12, %r14, %r11
-	shlx	%r13, %r10, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 24(%rdi)
-	lea	32(%rsi), %rsi
-	lea	32(%rdx), %rdx
-	lea	32(%rdi), %rdi
-	dec	%rcx
-	jnz	.Lha3u
-.Lha3d:
-	sar	$3, %r10
-	mov	%r10, (%rdi)
-	mov	%r8, %rax
-	and	$7, %eax
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbx
-	ret
-	.size	gtc_rsh3add_n, .-gtc_rsh3add_n
-	.globl	gtc_rsh3sub_n
-	.type	gtc_rsh3sub_n, @function
-	.p2align	5
-gtc_rsh3sub_n:
-	push	%rbx
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	mov	$3, %r12d
-	mov	$61, %r13d
-	lea	-1(%rcx), %r9		/* n - 1 limbs after the first */
-	mov	%r9, %rax
-	shr	$2, %r9		/* groups of 4 */
-	and	$3, %eax		/* single steps */
-	mov	%rax, %rcx
-	mov	(%rsi), %r10
-	sub	(%rdx), %r10	/* s0 */
-	mov	%r10, %r8		/* the bit shifted out: s0 & 1 */
-	lea	8(%rsi), %rsi
-	lea	8(%rdx), %rdx
-	jrcxz	.Lhs3se
-.Lhs3s:
-	mov	0(%rsi), %rax
-	sbb	0(%rdx), %rax
-	shrx	%r12, %r10, %r11
-	shlx	%r13, %rax, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 0(%rdi)
-	mov	%rax, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%rdx), %rdx
-	lea	8(%rdi), %rdi
-	dec	%rcx			/* dec leaves CF alone */
-	jnz	.Lhs3s
-.Lhs3se:
-	mov	%r9, %rcx
-	jrcxz	.Lhs3d
-.Lhs3u:
-	mov	0(%rsi), %rax
-	sbb	0(%rdx), %rax
-	shrx	%r12, %r10, %r11
-	shlx	%r13, %rax, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 0(%rdi)
-	mov	8(%rsi), %rbx
-	sbb	8(%rdx), %rbx
-	shrx	%r12, %rax, %r11
-	shlx	%r13, %rbx, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 8(%rdi)
-	mov	16(%rsi), %r14
-	sbb	16(%rdx), %r14
-	shrx	%r12, %rbx, %r11
-	shlx	%r13, %r14, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 16(%rdi)
-	mov	24(%rsi), %r10
-	sbb	24(%rdx), %r10
-	shrx	%r12, %r14, %r11
-	shlx	%r13, %r10, %r15
-	lea	(%r11,%r15), %r11
-	mov	%r11, 24(%rdi)
-	lea	32(%rsi), %rsi
-	lea	32(%rdx), %rdx
-	lea	32(%rdi), %rdi
-	dec	%rcx
-	jnz	.Lhs3u
-.Lhs3d:
-	sar	$3, %r10
-	mov	%r10, (%rdi)
-	mov	%r8, %rax
-	and	$7, %eax
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbx
-	ret
-	.size	gtc_rsh3sub_n, .-gtc_rsh3sub_n
-#else
-	.globl	gtc_rsh3add_n
-	.type	gtc_rsh3add_n, @function
-	.p2align	5
-gtc_rsh3add_n:
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	lea	-1(%rcx), %r9		/* n - 1 limbs after the first */
-	mov	%r9, %rcx
-	mov	(%rsi), %r10
-	add	(%rdx), %r10	/* s0 */
-	sbb	%rbp, %rbp		/* CF saved: 0 or -1 */
-	mov	%r10, %r8		/* the bit shifted out: s0 & 1 */
-	lea	8(%rsi), %rsi
-	lea	8(%rdx), %rdx
-	test	$1, %cl
-	jz	.Lhb831
-	bt	$0, %rbp		/* CF back */
-	mov	0(%rsi), %rax
-	adc	0(%rdx), %rax
-	sbb	%rbp, %rbp
-	shrd	$3, %rax, %r10
-	mov	%r10, 0(%rdi)
-	mov	%rax, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%rdx), %rdx
-	lea	8(%rdi), %rdi
-.Lhb831:
-	test	$2, %cl
-	jz	.Lhb832
-	bt	$0, %rbp		/* CF back */
-	mov	0(%rsi), %rax
-	adc	0(%rdx), %rax
-	mov	8(%rsi), %rbx
-	adc	8(%rdx), %rbx
-	sbb	%rbp, %rbp
-	shrd	$3, %rax, %r10
-	mov	%r10, 0(%rdi)
-	shrd	$3, %rbx, %rax
-	mov	%rax, 8(%rdi)
-	mov	%rbx, %r10
-	lea	16(%rsi), %rsi
-	lea	16(%rdx), %rdx
-	lea	16(%rdi), %rdi
-.Lhb832:
-	test	$4, %cl
-	jz	.Lhb833
-	bt	$0, %rbp		/* CF back */
-	mov	0(%rsi), %rax
-	adc	0(%rdx), %rax
-	mov	8(%rsi), %rbx
-	adc	8(%rdx), %rbx
-	mov	16(%rsi), %r9
-	adc	16(%rdx), %r9
-	mov	24(%rsi), %r11
-	adc	24(%rdx), %r11
-	sbb	%rbp, %rbp
-	shrd	$3, %rax, %r10
-	mov	%r10, 0(%rdi)
-	shrd	$3, %rbx, %rax
-	mov	%rax, 8(%rdi)
-	shrd	$3, %r9, %rbx
-	mov	%rbx, 16(%rdi)
-	shrd	$3, %r11, %r9
-	mov	%r9, 24(%rdi)
-	mov	%r11, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%rdx), %rdx
-	lea	32(%rdi), %rdi
-.Lhb833:
-	shr	$3, %rcx		/* groups of 8 */
-	jz	.Lha3d
-	.p2align	4
-.Lha3u:
-	bt	$0, %rbp		/* CF back */
-	mov	0(%rsi), %rax
-	adc	0(%rdx), %rax
-	mov	8(%rsi), %rbx
-	adc	8(%rdx), %rbx
-	mov	16(%rsi), %r9
-	adc	16(%rdx), %r9
-	mov	24(%rsi), %r11
-	adc	24(%rdx), %r11
-	mov	32(%rsi), %r12
-	adc	32(%rdx), %r12
-	mov	40(%rsi), %r13
-	adc	40(%rdx), %r13
-	mov	48(%rsi), %r14
-	adc	48(%rdx), %r14
-	mov	56(%rsi), %r15
-	adc	56(%rdx), %r15
-	sbb	%rbp, %rbp
-	shrd	$3, %rax, %r10
-	mov	%r10, 0(%rdi)
-	shrd	$3, %rbx, %rax
-	mov	%rax, 8(%rdi)
-	shrd	$3, %r9, %rbx
-	mov	%rbx, 16(%rdi)
-	shrd	$3, %r11, %r9
-	mov	%r9, 24(%rdi)
-	shrd	$3, %r12, %r11
-	mov	%r11, 32(%rdi)
-	shrd	$3, %r13, %r12
-	mov	%r12, 40(%rdi)
-	shrd	$3, %r14, %r13
-	mov	%r13, 48(%rdi)
-	shrd	$3, %r15, %r14
-	mov	%r14, 56(%rdi)
-	mov	%r15, %r10
-	lea	64(%rsi), %rsi
-	lea	64(%rdx), %rdx
-	lea	64(%rdi), %rdi
-	dec	%rcx
-	jnz	.Lha3u
-.Lha3d:
-	sar	$3, %r10
-	mov	%r10, (%rdi)
-	mov	%r8, %rax
-	and	$7, %eax
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-	ret
-	.size	gtc_rsh3add_n, .-gtc_rsh3add_n
-	.globl	gtc_rsh3sub_n
-	.type	gtc_rsh3sub_n, @function
-	.p2align	5
-gtc_rsh3sub_n:
-	push	%rbx
-	push	%rbp
-	push	%r12
-	push	%r13
-	push	%r14
-	push	%r15
-	lea	-1(%rcx), %r9		/* n - 1 limbs after the first */
-	mov	%r9, %rcx
-	mov	(%rsi), %r10
-	sub	(%rdx), %r10	/* s0 */
-	sbb	%rbp, %rbp		/* CF saved: 0 or -1 */
-	mov	%r10, %r8		/* the bit shifted out: s0 & 1 */
-	lea	8(%rsi), %rsi
-	lea	8(%rdx), %rdx
-	test	$1, %cl
-	jz	.Lhb834
-	bt	$0, %rbp		/* CF back */
-	mov	0(%rsi), %rax
-	sbb	0(%rdx), %rax
-	sbb	%rbp, %rbp
-	shrd	$3, %rax, %r10
-	mov	%r10, 0(%rdi)
-	mov	%rax, %r10
-	lea	8(%rsi), %rsi
-	lea	8(%rdx), %rdx
-	lea	8(%rdi), %rdi
-.Lhb834:
-	test	$2, %cl
-	jz	.Lhb835
-	bt	$0, %rbp		/* CF back */
-	mov	0(%rsi), %rax
-	sbb	0(%rdx), %rax
-	mov	8(%rsi), %rbx
-	sbb	8(%rdx), %rbx
-	sbb	%rbp, %rbp
-	shrd	$3, %rax, %r10
-	mov	%r10, 0(%rdi)
-	shrd	$3, %rbx, %rax
-	mov	%rax, 8(%rdi)
-	mov	%rbx, %r10
-	lea	16(%rsi), %rsi
-	lea	16(%rdx), %rdx
-	lea	16(%rdi), %rdi
-.Lhb835:
-	test	$4, %cl
-	jz	.Lhb836
-	bt	$0, %rbp		/* CF back */
-	mov	0(%rsi), %rax
-	sbb	0(%rdx), %rax
-	mov	8(%rsi), %rbx
-	sbb	8(%rdx), %rbx
-	mov	16(%rsi), %r9
-	sbb	16(%rdx), %r9
-	mov	24(%rsi), %r11
-	sbb	24(%rdx), %r11
-	sbb	%rbp, %rbp
-	shrd	$3, %rax, %r10
-	mov	%r10, 0(%rdi)
-	shrd	$3, %rbx, %rax
-	mov	%rax, 8(%rdi)
-	shrd	$3, %r9, %rbx
-	mov	%rbx, 16(%rdi)
-	shrd	$3, %r11, %r9
-	mov	%r9, 24(%rdi)
-	mov	%r11, %r10
-	lea	32(%rsi), %rsi
-	lea	32(%rdx), %rdx
-	lea	32(%rdi), %rdi
-.Lhb836:
-	shr	$3, %rcx		/* groups of 8 */
-	jz	.Lhs3d
-	.p2align	4
-.Lhs3u:
-	bt	$0, %rbp		/* CF back */
-	mov	0(%rsi), %rax
-	sbb	0(%rdx), %rax
-	mov	8(%rsi), %rbx
-	sbb	8(%rdx), %rbx
-	mov	16(%rsi), %r9
-	sbb	16(%rdx), %r9
-	mov	24(%rsi), %r11
-	sbb	24(%rdx), %r11
-	mov	32(%rsi), %r12
-	sbb	32(%rdx), %r12
-	mov	40(%rsi), %r13
-	sbb	40(%rdx), %r13
-	mov	48(%rsi), %r14
-	sbb	48(%rdx), %r14
-	mov	56(%rsi), %r15
-	sbb	56(%rdx), %r15
-	sbb	%rbp, %rbp
-	shrd	$3, %rax, %r10
-	mov	%r10, 0(%rdi)
-	shrd	$3, %rbx, %rax
-	mov	%rax, 8(%rdi)
-	shrd	$3, %r9, %rbx
-	mov	%rbx, 16(%rdi)
-	shrd	$3, %r11, %r9
-	mov	%r9, 24(%rdi)
-	shrd	$3, %r12, %r11
-	mov	%r11, 32(%rdi)
-	shrd	$3, %r13, %r12
-	mov	%r12, 40(%rdi)
-	shrd	$3, %r14, %r13
-	mov	%r13, 48(%rdi)
-	shrd	$3, %r15, %r14
-	mov	%r14, 56(%rdi)
-	mov	%r15, %r10
-	lea	64(%rsi), %rsi
-	lea	64(%rdx), %rdx
-	lea	64(%rdi), %rdi
-	dec	%rcx
-	jnz	.Lhs3u
-.Lhs3d:
-	sar	$3, %r10
-	mov	%r10, (%rdi)
-	mov	%r8, %rax
-	and	$7, %eax
-	pop	%r15
-	pop	%r14
-	pop	%r13
-	pop	%r12
-	pop	%rbp
-	pop	%rbx
-	ret
-	.size	gtc_rsh3sub_n, .-gtc_rsh3sub_n
-#endif
+	.skip	32, 0xcc
 	.globl	gtc_aorslsh_n
 	.type	gtc_aorslsh_n, @function
 	.p2align	5
@@ -11215,37 +9788,37 @@ gtc_aorslsh_n:
 	sub	%r8d, %r10d		/* 64 - s */
 	xor	%r11d, %r11d		/* the limb below */
 	cmp	$1, %r8d
-	je	.Ld849_1
+	je	.Ld674_1
 	cmp	$2, %r8d
-	je	.Ld850_2
+	je	.Ld675_2
 	cmp	$3, %r8d
-	je	.Ld851_3
+	je	.Ld676_3
 	cmp	$1, %r9d
-	jb	.Llsh0m0_846
-	je	.Llsh0m1_847
-	jmp	.Llsh0m2_848
-.Ld849_1:
+	jb	.Llsh0m0_671
+	je	.Llsh0m1_672
+	jmp	.Llsh0m2_673
+.Ld674_1:
 	cmp	$1, %r9d
-	jb	.Llsh1m0_837
-	je	.Llsh1m1_838
-	jmp	.Llsh1m2_839
-.Ld850_2:
+	jb	.Llsh1m0_662
+	je	.Llsh1m1_663
+	jmp	.Llsh1m2_664
+.Ld675_2:
 	cmp	$1, %r9d
-	jb	.Llsh2m0_840
-	je	.Llsh2m1_841
-	jmp	.Llsh2m2_842
-.Ld851_3:
+	jb	.Llsh2m0_665
+	je	.Llsh2m1_666
+	jmp	.Llsh2m2_667
+.Ld676_3:
 	cmp	$1, %r9d
-	jb	.Llsh3m0_843
-	je	.Llsh3m1_844
-	jmp	.Llsh3m2_845
-.Llsh1m0_837:
+	jb	.Llsh3m0_668
+	je	.Llsh3m1_669
+	jmp	.Llsh3m2_670
+.Llsh1m0_662:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb10853
-.Lls10852:
+	jrcxz	.Llb10678
+.Lls10677:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,2), %rax
@@ -11256,15 +9829,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls10852
-.Llb10853:
+	jnz	.Lls10677
+.Llb10678:
 	mov	%r9, %rcx
-	jrcxz	.Llz10856		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll10854
-.Llz10856:
-	jmp	.Lld10855
+	jrcxz	.Llz10681		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll10679
+.Llz10681:
+	jmp	.Lld10680
 	.p2align	4
-.Lll10854:
+.Lll10679:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,2), %rax
@@ -11289,8 +9862,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll10854
-.Lld10855:
+	jnz	.Lll10679
+.Lld10680:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11298,13 +9871,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh1m1_838:
+.Llsh1m1_663:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb11858
-.Lls11857:
+	jrcxz	.Llb11683
+.Lls11682:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,2), %rax
@@ -11316,15 +9889,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls11857
-.Llb11858:
+	jnz	.Lls11682
+.Llb11683:
 	mov	%r9, %rcx
-	jrcxz	.Llz11861		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll11859
-.Llz11861:
-	jmp	.Lld11860
+	jrcxz	.Llz11686		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll11684
+.Llz11686:
+	jmp	.Lld11685
 	.p2align	4
-.Lll11859:
+.Lll11684:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,2), %rax
@@ -11353,8 +9926,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll11859
-.Lld11860:
+	jnz	.Lll11684
+.Lld11685:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11362,13 +9935,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh1m2_839:
+.Llsh1m2_664:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb12863
-.Lls12862:
+	jrcxz	.Llb12688
+.Lls12687:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,2), %rax
@@ -11379,15 +9952,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls12862
-.Llb12863:
+	jnz	.Lls12687
+.Llb12688:
 	mov	%r9, %rcx
-	jrcxz	.Llz12866		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll12864
-.Llz12866:
-	jmp	.Lld12865
+	jrcxz	.Llz12691		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll12689
+.Llz12691:
+	jmp	.Lld12690
 	.p2align	4
-.Lll12864:
+.Lll12689:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,2), %rax
@@ -11412,8 +9985,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll12864
-.Lld12865:
+	jnz	.Lll12689
+.Lld12690:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11422,13 +9995,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh2m0_840:
+.Llsh2m0_665:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb20868
-.Lls20867:
+	jrcxz	.Llb20693
+.Lls20692:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,4), %rax
@@ -11439,15 +10012,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls20867
-.Llb20868:
+	jnz	.Lls20692
+.Llb20693:
 	mov	%r9, %rcx
-	jrcxz	.Llz20871		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll20869
-.Llz20871:
-	jmp	.Lld20870
+	jrcxz	.Llz20696		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll20694
+.Llz20696:
+	jmp	.Lld20695
 	.p2align	4
-.Lll20869:
+.Lll20694:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,4), %rax
@@ -11472,8 +10045,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll20869
-.Lld20870:
+	jnz	.Lll20694
+.Lld20695:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11481,13 +10054,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh2m1_841:
+.Llsh2m1_666:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb21873
-.Lls21872:
+	jrcxz	.Llb21698
+.Lls21697:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,4), %rax
@@ -11499,15 +10072,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls21872
-.Llb21873:
+	jnz	.Lls21697
+.Llb21698:
 	mov	%r9, %rcx
-	jrcxz	.Llz21876		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll21874
-.Llz21876:
-	jmp	.Lld21875
+	jrcxz	.Llz21701		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll21699
+.Llz21701:
+	jmp	.Lld21700
 	.p2align	4
-.Lll21874:
+.Lll21699:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,4), %rax
@@ -11536,8 +10109,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll21874
-.Lld21875:
+	jnz	.Lll21699
+.Lld21700:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11545,13 +10118,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh2m2_842:
+.Llsh2m2_667:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb22878
-.Lls22877:
+	jrcxz	.Llb22703
+.Lls22702:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,4), %rax
@@ -11562,15 +10135,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls22877
-.Llb22878:
+	jnz	.Lls22702
+.Llb22703:
 	mov	%r9, %rcx
-	jrcxz	.Llz22881		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll22879
-.Llz22881:
-	jmp	.Lld22880
+	jrcxz	.Llz22706		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll22704
+.Llz22706:
+	jmp	.Lld22705
 	.p2align	4
-.Lll22879:
+.Lll22704:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,4), %rax
@@ -11595,8 +10168,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll22879
-.Lld22880:
+	jnz	.Lll22704
+.Lld22705:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11605,13 +10178,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh3m0_843:
+.Llsh3m0_668:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb30883
-.Lls30882:
+	jrcxz	.Llb30708
+.Lls30707:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,8), %rax
@@ -11622,15 +10195,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls30882
-.Llb30883:
+	jnz	.Lls30707
+.Llb30708:
 	mov	%r9, %rcx
-	jrcxz	.Llz30886		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll30884
-.Llz30886:
-	jmp	.Lld30885
+	jrcxz	.Llz30711		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll30709
+.Llz30711:
+	jmp	.Lld30710
 	.p2align	4
-.Lll30884:
+.Lll30709:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,8), %rax
@@ -11655,8 +10228,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll30884
-.Lld30885:
+	jnz	.Lll30709
+.Lld30710:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11664,13 +10237,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh3m1_844:
+.Llsh3m1_669:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb31888
-.Lls31887:
+	jrcxz	.Llb31713
+.Lls31712:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,8), %rax
@@ -11682,15 +10255,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls31887
-.Llb31888:
+	jnz	.Lls31712
+.Llb31713:
 	mov	%r9, %rcx
-	jrcxz	.Llz31891		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll31889
-.Llz31891:
-	jmp	.Lld31890
+	jrcxz	.Llz31716		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll31714
+.Llz31716:
+	jmp	.Lld31715
 	.p2align	4
-.Lll31889:
+.Lll31714:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,8), %rax
@@ -11719,8 +10292,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll31889
-.Lld31890:
+	jnz	.Lll31714
+.Lld31715:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11728,13 +10301,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh3m2_845:
+.Llsh3m2_670:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb32893
-.Lls32892:
+	jrcxz	.Llb32718
+.Lls32717:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,8), %rax
@@ -11745,15 +10318,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls32892
-.Llb32893:
+	jnz	.Lls32717
+.Llb32718:
 	mov	%r9, %rcx
-	jrcxz	.Llz32896		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll32894
-.Llz32896:
-	jmp	.Lld32895
+	jrcxz	.Llz32721		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll32719
+.Llz32721:
+	jmp	.Lld32720
 	.p2align	4
-.Lll32894:
+.Lll32719:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	lea	(%rax,%rbx,8), %rax
@@ -11778,8 +10351,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll32894
-.Lld32895:
+	jnz	.Lll32719
+.Lld32720:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11788,13 +10361,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh0m0_846:
+.Llsh0m0_671:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb00898
-.Lls00897:
+	jrcxz	.Llb00723
+.Lls00722:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	shlx	%r8, %rbx, %rbp
@@ -11806,15 +10379,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls00897
-.Llb00898:
+	jnz	.Lls00722
+.Llb00723:
 	mov	%r9, %rcx
-	jrcxz	.Llz00901		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll00899
-.Llz00901:
-	jmp	.Lld00900
+	jrcxz	.Llz00726		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll00724
+.Llz00726:
+	jmp	.Lld00725
 	.p2align	4
-.Lll00899:
+.Lll00724:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	shlx	%r8, %rbx, %rbp
@@ -11843,8 +10416,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll00899
-.Lld00900:
+	jnz	.Lll00724
+.Lld00725:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11852,13 +10425,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh0m1_847:
+.Llsh0m1_672:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb01903
-.Lls01902:
+	jrcxz	.Llb01728
+.Lls01727:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	shlx	%r8, %rbx, %rbp
@@ -11871,15 +10444,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls01902
-.Llb01903:
+	jnz	.Lls01727
+.Llb01728:
 	mov	%r9, %rcx
-	jrcxz	.Llz01906		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll01904
-.Llz01906:
-	jmp	.Lld01905
+	jrcxz	.Llz01731		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll01729
+.Llz01731:
+	jmp	.Lld01730
 	.p2align	4
-.Lll01904:
+.Lll01729:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	shlx	%r8, %rbx, %rbp
@@ -11912,8 +10485,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll01904
-.Lld01905:
+	jnz	.Lll01729
+.Lld01730:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11921,13 +10494,13 @@ gtc_aorslsh_n:
 	pop	%rbp
 	pop	%rbx
 	ret
-.Llsh0m2_848:
+.Llsh0m2_673:
 	mov	%rcx, %r9
 	shr	$2, %r9		/* blocks */
 	and	$3, %ecx
 	clc
-	jrcxz	.Llb02908
-.Lls02907:
+	jrcxz	.Llb02733
+.Lls02732:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	shlx	%r8, %rbx, %rbp
@@ -11939,15 +10512,15 @@ gtc_aorslsh_n:
 	lea	8(%rsi), %rsi
 	lea	8(%rdx), %rdx
 	dec	%ecx
-	jnz	.Lls02907
-.Llb02908:
+	jnz	.Lls02732
+.Llb02733:
 	mov	%r9, %rcx
-	jrcxz	.Llz02911		/* jrcxz reaches 127 bytes only */
-	jmp	.Lll02909
-.Llz02911:
-	jmp	.Lld02910
+	jrcxz	.Llz02736		/* jrcxz reaches 127 bytes only */
+	jmp	.Lll02734
+.Llz02736:
+	jmp	.Lld02735
 	.p2align	4
-.Lll02909:
+.Lll02734:
 	mov	0(%rdx), %rbx
 	shrx	%r10, %r11, %rax
 	shlx	%r8, %rbx, %rbp
@@ -11976,8 +10549,8 @@ gtc_aorslsh_n:
 	lea	32(%rsi), %rsi
 	lea	32(%rdx), %rdx
 	dec	%rcx
-	jnz	.Lll02909
-.Lld02910:
+	jnz	.Lll02734
+.Lld02735:
 	setc	%al
 	movzbl	%al, %eax
 	shrx	%r10, %r11, %rbp
@@ -11987,5 +10560,26907 @@ gtc_aorslsh_n:
 	pop	%rbx
 	ret
 	.size	gtc_aorslsh_n, .-gtc_aorslsh_n
+/* {d, n} = x +- y (CF), {zp, n} = d +- z (OF); returns CF + 2 OF.
+   See the header. */
+	.globl	gtc_aors2c_n
+	.type	gtc_aors2c_n, @function
+	.p2align	5
+gtc_aors2c_n:
+	mov	%rcx, %r10		/* the fourth pointer: rcx counts */
+	lea	7(%r8), %rcx
+	shr	$3, %rcx		/* groups, the first one partial */
+	test	%rcx, %rcx
+	jz	.Lzero737
+	neg	%r8
+	and	$7, %r8d		/* the steps the first group skips */
+	lea	(,%r8,8), %r11
+	sub	%r11, %rdi
+	sub	%r11, %rsi
+	sub	%r11, %rdx
+	sub	%r11, %r10
+	test	$1, %r9b
+	jnz	.Ls1_742
+	test	$2, %r9b
+	jnz	.Lv01_739
+	jmp	.Lv00_738
+.Ls1_742:
+	test	$2, %r9b
+	jnz	.Lv11_741
+	jmp	.Lv10_740
+.Lv00_738:
+	lea	.Lt752(%rip), %rax
+	movslq	(%rax,%r8,4), %r11
+	add	%r11, %rax
+	xor	%r11d, %r11d		/* CF = OF = 0 */
+	jmp	*%rax
+.Le744:
+	mov	0(%rdx), %rax
+	adcx	0(%r10), %rax
+	mov	%rax, 0(%rdi)
+	adox	0(%rsi), %rax
+	mov	%rax, 0(%rsi)
+.Le745:
+	mov	8(%rdx), %rax
+	adcx	8(%r10), %rax
+	mov	%rax, 8(%rdi)
+	adox	8(%rsi), %rax
+	mov	%rax, 8(%rsi)
+.Le746:
+	mov	16(%rdx), %rax
+	adcx	16(%r10), %rax
+	mov	%rax, 16(%rdi)
+	adox	16(%rsi), %rax
+	mov	%rax, 16(%rsi)
+.Le747:
+	mov	24(%rdx), %rax
+	adcx	24(%r10), %rax
+	mov	%rax, 24(%rdi)
+	adox	24(%rsi), %rax
+	mov	%rax, 24(%rsi)
+.Le748:
+	mov	32(%rdx), %rax
+	adcx	32(%r10), %rax
+	mov	%rax, 32(%rdi)
+	adox	32(%rsi), %rax
+	mov	%rax, 32(%rsi)
+.Le749:
+	mov	40(%rdx), %rax
+	adcx	40(%r10), %rax
+	mov	%rax, 40(%rdi)
+	adox	40(%rsi), %rax
+	mov	%rax, 40(%rsi)
+.Le750:
+	mov	48(%rdx), %rax
+	adcx	48(%r10), %rax
+	mov	%rax, 48(%rdi)
+	adox	48(%rsi), %rax
+	mov	%rax, 48(%rsi)
+.Le751:
+	mov	56(%rdx), %rax
+	adcx	56(%r10), %rax
+	mov	%rax, 56(%rdi)
+	adox	56(%rsi), %rax
+	mov	%rax, 56(%rsi)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%r10), %r10
+	lea	-1(%rcx), %rcx
+	jrcxz	.Ld753
+	jmp	.Le744
+.Ld753:
+	jmp	.Lend743
+	.p2align	2
+.Lt752:
+	.long	.Le744 - .Lt752
+	.long	.Le745 - .Lt752
+	.long	.Le746 - .Lt752
+	.long	.Le747 - .Lt752
+	.long	.Le748 - .Lt752
+	.long	.Le749 - .Lt752
+	.long	.Le750 - .Lt752
+	.long	.Le751 - .Lt752
+.Lv01_739:
+	lea	.Lt762(%rip), %rax
+	movslq	(%rax,%r8,4), %r11
+	add	%r11, %rax
+	xor	%r11d, %r11d		/* CF = OF = 0 */
+	mov	$0x7fffffffffffffff, %r11
+	add	$1, %r11		/* OF = 1, CF = 0 */
+	jmp	*%rax
+.Le754:
+	mov	0(%rdx), %rax
+	adcx	0(%r10), %rax
+	mov	%rax, 0(%rdi)
+	mov	0(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 0(%rsi)
+.Le755:
+	mov	8(%rdx), %rax
+	adcx	8(%r10), %rax
+	mov	%rax, 8(%rdi)
+	mov	8(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 8(%rsi)
+.Le756:
+	mov	16(%rdx), %rax
+	adcx	16(%r10), %rax
+	mov	%rax, 16(%rdi)
+	mov	16(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 16(%rsi)
+.Le757:
+	mov	24(%rdx), %rax
+	adcx	24(%r10), %rax
+	mov	%rax, 24(%rdi)
+	mov	24(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 24(%rsi)
+.Le758:
+	mov	32(%rdx), %rax
+	adcx	32(%r10), %rax
+	mov	%rax, 32(%rdi)
+	mov	32(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 32(%rsi)
+.Le759:
+	mov	40(%rdx), %rax
+	adcx	40(%r10), %rax
+	mov	%rax, 40(%rdi)
+	mov	40(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 40(%rsi)
+.Le760:
+	mov	48(%rdx), %rax
+	adcx	48(%r10), %rax
+	mov	%rax, 48(%rdi)
+	mov	48(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 48(%rsi)
+.Le761:
+	mov	56(%rdx), %rax
+	adcx	56(%r10), %rax
+	mov	%rax, 56(%rdi)
+	mov	56(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 56(%rsi)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%r10), %r10
+	lea	-1(%rcx), %rcx
+	jrcxz	.Ld763
+	jmp	.Le754
+.Ld763:
+	jmp	.Lend743
+	.p2align	2
+.Lt762:
+	.long	.Le754 - .Lt762
+	.long	.Le755 - .Lt762
+	.long	.Le756 - .Lt762
+	.long	.Le757 - .Lt762
+	.long	.Le758 - .Lt762
+	.long	.Le759 - .Lt762
+	.long	.Le760 - .Lt762
+	.long	.Le761 - .Lt762
+.Lv10_740:
+	lea	.Lt772(%rip), %rax
+	movslq	(%rax,%r8,4), %r11
+	add	%r11, %rax
+	xor	%r11d, %r11d		/* CF = OF = 0 */
+	stc
+	jmp	*%rax
+.Le764:
+	mov	0(%rdx), %rax
+	mov	0(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 0(%rdi)
+	adox	0(%rsi), %rax
+	mov	%rax, 0(%rsi)
+.Le765:
+	mov	8(%rdx), %rax
+	mov	8(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 8(%rdi)
+	adox	8(%rsi), %rax
+	mov	%rax, 8(%rsi)
+.Le766:
+	mov	16(%rdx), %rax
+	mov	16(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 16(%rdi)
+	adox	16(%rsi), %rax
+	mov	%rax, 16(%rsi)
+.Le767:
+	mov	24(%rdx), %rax
+	mov	24(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 24(%rdi)
+	adox	24(%rsi), %rax
+	mov	%rax, 24(%rsi)
+.Le768:
+	mov	32(%rdx), %rax
+	mov	32(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 32(%rdi)
+	adox	32(%rsi), %rax
+	mov	%rax, 32(%rsi)
+.Le769:
+	mov	40(%rdx), %rax
+	mov	40(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 40(%rdi)
+	adox	40(%rsi), %rax
+	mov	%rax, 40(%rsi)
+.Le770:
+	mov	48(%rdx), %rax
+	mov	48(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 48(%rdi)
+	adox	48(%rsi), %rax
+	mov	%rax, 48(%rsi)
+.Le771:
+	mov	56(%rdx), %rax
+	mov	56(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 56(%rdi)
+	adox	56(%rsi), %rax
+	mov	%rax, 56(%rsi)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%r10), %r10
+	lea	-1(%rcx), %rcx
+	jrcxz	.Ld773
+	jmp	.Le764
+.Ld773:
+	jmp	.Lend743
+	.p2align	2
+.Lt772:
+	.long	.Le764 - .Lt772
+	.long	.Le765 - .Lt772
+	.long	.Le766 - .Lt772
+	.long	.Le767 - .Lt772
+	.long	.Le768 - .Lt772
+	.long	.Le769 - .Lt772
+	.long	.Le770 - .Lt772
+	.long	.Le771 - .Lt772
+.Lv11_741:
+	lea	.Lt782(%rip), %rax
+	movslq	(%rax,%r8,4), %r11
+	add	%r11, %rax
+	xor	%r11d, %r11d		/* CF = OF = 0 */
+	mov	$0x7fffffffffffffff, %r11
+	add	$1, %r11		/* OF = 1, CF = 0 */
+	stc
+	jmp	*%rax
+.Le774:
+	mov	0(%rdx), %rax
+	mov	0(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 0(%rdi)
+	mov	0(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 0(%rsi)
+.Le775:
+	mov	8(%rdx), %rax
+	mov	8(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 8(%rdi)
+	mov	8(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 8(%rsi)
+.Le776:
+	mov	16(%rdx), %rax
+	mov	16(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 16(%rdi)
+	mov	16(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 16(%rsi)
+.Le777:
+	mov	24(%rdx), %rax
+	mov	24(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 24(%rdi)
+	mov	24(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 24(%rsi)
+.Le778:
+	mov	32(%rdx), %rax
+	mov	32(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 32(%rdi)
+	mov	32(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 32(%rsi)
+.Le779:
+	mov	40(%rdx), %rax
+	mov	40(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	40(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 40(%rsi)
+.Le780:
+	mov	48(%rdx), %rax
+	mov	48(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 48(%rdi)
+	mov	48(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 48(%rsi)
+.Le781:
+	mov	56(%rdx), %rax
+	mov	56(%r10), %r9
+	not	%r9
+	adcx	%r9, %rax
+	mov	%rax, 56(%rdi)
+	mov	56(%rsi), %r9
+	not	%r9
+	adox	%r9, %rax
+	mov	%rax, 56(%rsi)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%r10), %r10
+	lea	-1(%rcx), %rcx
+	jrcxz	.Ld783
+	jmp	.Le774
+.Ld783:
+	jmp	.Lend743
+	.p2align	2
+.Lt782:
+	.long	.Le774 - .Lt782
+	.long	.Le775 - .Lt782
+	.long	.Le776 - .Lt782
+	.long	.Le777 - .Lt782
+	.long	.Le778 - .Lt782
+	.long	.Le779 - .Lt782
+	.long	.Le780 - .Lt782
+	.long	.Le781 - .Lt782
+.Lzero737:
+	mov	%r9d, %eax
+	and	$3, %eax		/* the carry-ins: nP + 2 nQ */
+	ret
+.Lend743:
+	setc	%al
+	seto	%cl
+	movzbl	%al, %eax
+	movzbl	%cl, %ecx
+	lea	(%rax,%rcx,2), %eax
+	ret
+	.size	gtc_aors2c_n, .-gtc_aors2c_n
+#if defined (__znver1__) || defined (__znver2__) || defined (__znver3__) || defined (__znver4__) || defined (__znver5__)
+/* gtc_tc5q_n: see the header.  */
+	.globl	gtc_tc5q_n
+	.type	gtc_tc5q_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5q_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$56, %rsp
+	mov	%rdx, %r10
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mov	112(%rsp), %eax
+	and	$15, %eax
+	test	$8, %eax
+	jnz	.Ltd866
+	test	$4, %eax
+	jnz	.Ltd867
+	test	$2, %eax
+	jnz	.Ltd868
+	test	$1, %eax
+	jnz	.Ltd869
+	jmp	.Lq5m786
+.Ltd869:
+	jmp	.Lq5m791
+.Ltd868:
+	test	$1, %eax
+	jnz	.Ltd870
+	jmp	.Lq5m796
+.Ltd870:
+	jmp	.Lq5m801
+.Ltd867:
+	test	$2, %eax
+	jnz	.Ltd871
+	test	$1, %eax
+	jnz	.Ltd872
+	jmp	.Lq5m806
+.Ltd872:
+	jmp	.Lq5m811
+.Ltd871:
+	test	$1, %eax
+	jnz	.Ltd873
+	jmp	.Lq5m816
+.Ltd873:
+	jmp	.Lq5m821
+.Ltd866:
+	test	$4, %eax
+	jnz	.Ltd874
+	test	$2, %eax
+	jnz	.Ltd875
+	test	$1, %eax
+	jnz	.Ltd876
+	jmp	.Lq5m826
+.Ltd876:
+	jmp	.Lq5m831
+.Ltd875:
+	test	$1, %eax
+	jnz	.Ltd877
+	jmp	.Lq5m836
+.Ltd877:
+	jmp	.Lq5m841
+.Ltd874:
+	test	$2, %eax
+	jnz	.Ltd878
+	test	$1, %eax
+	jnz	.Ltd879
+	jmp	.Lq5m846
+.Ltd879:
+	jmp	.Lq5m851
+.Ltd878:
+	test	$1, %eax
+	jnz	.Ltd880
+	jmp	.Lq5m856
+.Ltd880:
+	jmp	.Lq5m861
+.Lq5m786:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$0, 16(%rsp)	/* a1's borrow-in 1 */
+	movq	$0, 24(%rsp)	/* -CF4 */
+	movq	$1, 32(%rsp)	/* OF5 */
+	mov	$-1, %r11		/* h = 0, as ~h */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b787
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b787:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b788
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b788:
+	cmp	48(%rsp), %r10
+	je	.Lq5d790
+	.p2align	4
+.Lq5l789:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	mulx	%r13, %r13, %rbx
+	add	%r11, %r13		/* ~q */
+	adc	%r13, %rbx		/* g' */
+	mulx	%r14, %r14, %r11
+	add	%rbx, %r14		/* ~q */
+	adc	%r14, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	adcx	16(%r8), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	adcx	24(%r8), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l789
+.Lq5d790:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	xor	$1, %rbp		/* tq */
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	sub	%rbp, %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	lea	-1(%rcx,%rbp), %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m791:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$0, 16(%rsp)	/* a1's borrow-in 1 */
+	movq	$0, 24(%rsp)	/* -CF4 */
+	movq	$1, 32(%rsp)	/* OF5 */
+	mov	$-1, %r11		/* h = 0, as ~h */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b792
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b792:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b793
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b793:
+	cmp	48(%rsp), %r10
+	je	.Lq5d795
+	.p2align	4
+.Lq5l794:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	mulx	%r13, %r13, %rbx
+	add	%r11, %r13		/* ~q */
+	adc	%r13, %rbx		/* g' */
+	mulx	%r14, %r14, %r11
+	add	%rbx, %r14		/* ~q */
+	adc	%r14, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	adcx	16(%r8), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	adcx	24(%r8), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l794
+.Lq5d795:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	xor	$1, %rbp		/* tq */
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	sub	%rbp, %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	lea	-1(%rcx,%rbp), %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m796:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$0, 16(%rsp)	/* a1's borrow-in 1 */
+	movq	$-1, 24(%rsp)	/* -CF4 */
+	movq	$1, 32(%rsp)	/* OF5 */
+	mov	$-1, %r11		/* h = 0, as ~h */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b797
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b797:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b798
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b798:
+	cmp	48(%rsp), %r10
+	je	.Lq5d800
+	.p2align	4
+.Lq5l799:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	mulx	%r13, %r13, %rbx
+	add	%r11, %r13		/* ~q */
+	adc	%r13, %rbx		/* g' */
+	mulx	%r14, %r14, %r11
+	add	%rbx, %r14		/* ~q */
+	adc	%r14, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	mov	16(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	mov	24(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l799
+.Lq5d800:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	xor	$1, %rbp		/* tq */
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	sub	%rbp, %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	lea	-1(%rcx,%rbp), %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m801:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$0, 16(%rsp)	/* a1's borrow-in 1 */
+	movq	$-1, 24(%rsp)	/* -CF4 */
+	movq	$1, 32(%rsp)	/* OF5 */
+	mov	$-1, %r11		/* h = 0, as ~h */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b802
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b802:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b803
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b803:
+	cmp	48(%rsp), %r10
+	je	.Lq5d805
+	.p2align	4
+.Lq5l804:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	mulx	%r13, %r13, %rbx
+	add	%r11, %r13		/* ~q */
+	adc	%r13, %rbx		/* g' */
+	mulx	%r14, %r14, %r11
+	add	%rbx, %r14		/* ~q */
+	adc	%r14, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	mov	16(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	mov	24(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l804
+.Lq5d805:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	xor	$1, %rbp		/* tq */
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	sub	%rbp, %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	lea	-1(%rcx,%rbp), %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m806:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)	/* a1's borrow-in 0 */
+	movq	$-1, 24(%rsp)	/* -CF4 */
+	movq	$0, 32(%rsp)	/* OF5 */
+	mov	$0, %r11		/* h = 0 */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b807
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b807:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b808
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b808:
+	cmp	48(%rsp), %r10
+	je	.Lq5d810
+	.p2align	4
+.Lq5l809:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	mov	16(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	mov	24(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l809
+.Lq5d810:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m811:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)	/* a1's borrow-in 0 */
+	movq	$-1, 24(%rsp)	/* -CF4 */
+	movq	$0, 32(%rsp)	/* OF5 */
+	mov	$0, %r11		/* h = 0 */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b812
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b812:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b813
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b813:
+	cmp	48(%rsp), %r10
+	je	.Lq5d815
+	.p2align	4
+.Lq5l814:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	mov	16(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	mov	24(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l814
+.Lq5d815:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m816:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)	/* a1's borrow-in 0 */
+	movq	$0, 24(%rsp)	/* -CF4 */
+	movq	$0, 32(%rsp)	/* OF5 */
+	mov	$0, %r11		/* h = 0 */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b817
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b817:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b818
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b818:
+	cmp	48(%rsp), %r10
+	je	.Lq5d820
+	.p2align	4
+.Lq5l819:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	adcx	16(%r8), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	adcx	24(%r8), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l819
+.Lq5d820:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m821:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)	/* a1's borrow-in 0 */
+	movq	$0, 24(%rsp)	/* -CF4 */
+	movq	$0, 32(%rsp)	/* OF5 */
+	mov	$0, %r11		/* h = 0 */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b822
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b822:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b823
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b823:
+	cmp	48(%rsp), %r10
+	je	.Lq5d825
+	.p2align	4
+.Lq5l824:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	adcx	16(%r8), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	adcx	24(%r8), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l824
+.Lq5d825:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m826:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$0, 16(%rsp)	/* a1's borrow-in 1 */
+	movq	$0, 24(%rsp)	/* -CF4 */
+	movq	$1, 32(%rsp)	/* OF5 */
+	mov	$-1, %r11		/* h = 0, as ~h */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b827
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b827:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b828
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b828:
+	cmp	48(%rsp), %r10
+	je	.Lq5d830
+	.p2align	4
+.Lq5l829:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$61, %rax
+	shr	$3, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$61, %rax
+	shr	$3, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	mulx	%r13, %r13, %rbx
+	add	%r11, %r13		/* ~q */
+	adc	%r13, %rbx		/* g' */
+	mulx	%r14, %r14, %r11
+	add	%rbx, %r14		/* ~q */
+	adc	%r14, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	adcx	16(%r8), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	adcx	24(%r8), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l829
+.Lq5d830:
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	xor	$1, %rbp		/* tq */
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	sub	%rbp, %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	lea	-1(%rcx,%rbp), %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m831:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$0, 16(%rsp)	/* a1's borrow-in 1 */
+	movq	$0, 24(%rsp)	/* -CF4 */
+	movq	$1, 32(%rsp)	/* OF5 */
+	mov	$-1, %r11		/* h = 0, as ~h */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b832
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b832:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b833
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b833:
+	cmp	48(%rsp), %r10
+	je	.Lq5d835
+	.p2align	4
+.Lq5l834:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$61, %rax
+	shr	$3, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$61, %rax
+	shr	$3, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	mulx	%r13, %r13, %rbx
+	add	%r11, %r13		/* ~q */
+	adc	%r13, %rbx		/* g' */
+	mulx	%r14, %r14, %r11
+	add	%rbx, %r14		/* ~q */
+	adc	%r14, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	adcx	16(%r8), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	adcx	24(%r8), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l834
+.Lq5d835:
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	xor	$1, %rbp		/* tq */
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	sub	%rbp, %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	lea	-1(%rcx,%rbp), %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m836:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$0, 16(%rsp)	/* a1's borrow-in 1 */
+	movq	$-1, 24(%rsp)	/* -CF4 */
+	movq	$1, 32(%rsp)	/* OF5 */
+	mov	$-1, %r11		/* h = 0, as ~h */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b837
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b837:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b838
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b838:
+	cmp	48(%rsp), %r10
+	je	.Lq5d840
+	.p2align	4
+.Lq5l839:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$61, %rax
+	shr	$3, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$61, %rax
+	shr	$3, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	mulx	%r13, %r13, %rbx
+	add	%r11, %r13		/* ~q */
+	adc	%r13, %rbx		/* g' */
+	mulx	%r14, %r14, %r11
+	add	%rbx, %r14		/* ~q */
+	adc	%r14, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	mov	16(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	mov	24(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l839
+.Lq5d840:
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	xor	$1, %rbp		/* tq */
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	sub	%rbp, %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	lea	-1(%rcx,%rbp), %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m841:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$0, 16(%rsp)	/* a1's borrow-in 1 */
+	movq	$-1, 24(%rsp)	/* -CF4 */
+	movq	$1, 32(%rsp)	/* OF5 */
+	mov	$-1, %r11		/* h = 0, as ~h */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b842
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b842:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b843
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b843:
+	cmp	48(%rsp), %r10
+	je	.Lq5d845
+	.p2align	4
+.Lq5l844:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$61, %rax
+	shr	$3, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$61, %rax
+	shr	$3, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mulx	%r12, %r12, %r11
+	add	%rbx, %r12		/* ~q */
+	adc	%r12, %r11		/* g' */
+	mulx	%r13, %r13, %rbx
+	add	%r11, %r13		/* ~q */
+	adc	%r13, %rbx		/* g' */
+	mulx	%r14, %r14, %r11
+	add	%rbx, %r14		/* ~q */
+	adc	%r14, %r11		/* g' */
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	mov	16(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	mov	24(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l844
+.Lq5d845:
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp		/* ~q */
+	adc	%rbp, %rbx		/* g' */
+	mov	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	xor	$1, %rbp		/* tq */
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	sub	%rbp, %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	lea	-1(%rcx,%rbp), %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m846:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)	/* a1's borrow-in 0 */
+	movq	$-1, 24(%rsp)	/* -CF4 */
+	movq	$0, 32(%rsp)	/* OF5 */
+	mov	$0, %r11		/* h = 0 */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b847
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b847:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b848
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b848:
+	cmp	48(%rsp), %r10
+	je	.Lq5d850
+	.p2align	4
+.Lq5l849:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$61, %rax
+	shr	$3, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$61, %rax
+	shr	$3, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	mov	16(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	mov	24(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l849
+.Lq5d850:
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m851:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)	/* a1's borrow-in 0 */
+	movq	$-1, 24(%rsp)	/* -CF4 */
+	movq	$0, 32(%rsp)	/* OF5 */
+	mov	$0, %r11		/* h = 0 */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b852
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b852:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b853
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b853:
+	cmp	48(%rsp), %r10
+	je	.Lq5d855
+	.p2align	4
+.Lq5l854:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$61, %rax
+	shr	$3, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$61, %rax
+	shr	$3, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	mov	8(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	mov	16(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	mov	24(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l854
+.Lq5d855:
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	mov	0(%r8), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m856:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)	/* a1's borrow-in 0 */
+	movq	$0, 24(%rsp)	/* -CF4 */
+	movq	$0, 32(%rsp)	/* OF5 */
+	mov	$0, %r11		/* h = 0 */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b857
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b857:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b858
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b858:
+	cmp	48(%rsp), %r10
+	je	.Lq5d860
+	.p2align	4
+.Lq5l859:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$61, %rax
+	shr	$3, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$61, %rax
+	shr	$3, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	adcx	16(%r8), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	adcx	24(%r8), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l859
+.Lq5d860:
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5m861:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)	/* a1's borrow-in 0 */
+	movq	$0, 24(%rsp)	/* -CF4 */
+	movq	$0, 32(%rsp)	/* OF5 */
+	mov	$0, %r11		/* h = 0 */
+	testb	$1, 40(%rsp)
+	jz	.Lq5b862
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq5b862:
+	testb	$2, 40(%rsp)
+	jz	.Lq5b863
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq5b863:
+	cmp	48(%rsp), %r10
+	je	.Lq5d865
+	.p2align	4
+.Lq5l864:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$61, %rax
+	shr	$3, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$61, %rax
+	shr	$3, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$61, %rax
+	shr	$3, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$61, %rax
+	shr	$3, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%rsi), %rax
+	adcx	8(%r8), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%rsi), %rax
+	adcx	16(%r8), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%rsi), %rax
+	adcx	24(%r8), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	48(%rsp), %r10
+	jne	.Lq5l864
+.Lq5d865:
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)	/* 1 - CF */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rsi), %rax
+	adcx	0(%r8), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	-8(%r8), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq5e785
+.Lq5e785:
+	add	$56, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5q_n, .-gtc_tc5q_n
+/* gtc_bfly_n: see the header.  */
+	.globl	gtc_bfly_n
+	.type	gtc_bfly_n, @function
+	.p2align	GTC_TC5_FA
+gtc_bfly_n:
+	mov	%rcx, %r10		/* yp: rcx counts */
+	lea	7(%r8), %rcx
+	shr	$3, %rcx		/* groups, the first one partial */
+	jz	.Lbz881
+	neg	%r8
+	and	$7, %r8d		/* the steps the first group skips */
+	lea	(,%r8,8), %r11
+	sub	%r11, %rdi
+	sub	%r11, %rsi
+	sub	%r11, %rdx
+	sub	%r11, %r10
+	lea	.Lbt890(%rip), %rax
+	movslq	(%rax,%r8,4), %r11
+	add	%r11, %rax
+	mov	$0x7fffffffffffffff, %r11
+	add	$1, %r11		/* OF = 1, CF = 0 */
+	jmp	*%rax
+.Lbe882:
+	mov	0(%rdx), %rax
+	mov	0(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 0(%rdi)
+	mov	%r11, 0(%rsi)
+.Lbe883:
+	mov	8(%rdx), %rax
+	mov	8(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 8(%rdi)
+	mov	%r11, 8(%rsi)
+.Lbe884:
+	mov	16(%rdx), %rax
+	mov	16(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 16(%rdi)
+	mov	%r11, 16(%rsi)
+.Lbe885:
+	mov	24(%rdx), %rax
+	mov	24(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 24(%rdi)
+	mov	%r11, 24(%rsi)
+.Lbe886:
+	mov	32(%rdx), %rax
+	mov	32(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 32(%rdi)
+	mov	%r11, 32(%rsi)
+.Lbe887:
+	mov	40(%rdx), %rax
+	mov	40(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 40(%rdi)
+	mov	%r11, 40(%rsi)
+.Lbe888:
+	mov	48(%rdx), %rax
+	mov	48(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 48(%rdi)
+	mov	%r11, 48(%rsi)
+.Lbe889:
+	mov	56(%rdx), %rax
+	mov	56(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 56(%rdi)
+	mov	%r11, 56(%rsi)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%r10), %r10
+	lea	-1(%rcx), %rcx
+	jrcxz	.Lbd891
+	jmp	.Lbe882
+.Lbd891:
+.Lbz881:
+	xor	%eax, %eax
+	ret
+	.p2align	2
+.Lbt890:
+	.long	.Lbe882 - .Lbt890
+	.long	.Lbe883 - .Lbt890
+	.long	.Lbe884 - .Lbt890
+	.long	.Lbe885 - .Lbt890
+	.long	.Lbe886 - .Lbt890
+	.long	.Lbe887 - .Lbt890
+	.long	.Lbe888 - .Lbt890
+	.long	.Lbe889 - .Lbt890
+	.size	gtc_bfly_n, .-gtc_bfly_n
+/* gtc_tc5s_n: see the header.  */
+	.globl	gtc_tc5s_n
+	.type	gtc_tc5s_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5s_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$40, %rsp
+	mov	%rdx, %r10
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mov	96(%rsp), %eax
+	and	$7, %eax
+	test	$4, %eax
+	jnz	.Ltd924
+	test	$2, %eax
+	jnz	.Ltd925
+	test	$1, %eax
+	jnz	.Ltd926
+	jmp	.Lq6m894
+.Ltd926:
+	jmp	.Lq6m899
+.Ltd925:
+	test	$1, %eax
+	jnz	.Ltd927
+	jmp	.Lq6m904
+.Ltd927:
+	jmp	.Lq6m909
+.Ltd924:
+	test	$2, %eax
+	jnz	.Ltd928
+	test	$1, %eax
+	jnz	.Ltd929
+	jmp	.Lq6m914
+.Ltd929:
+	jmp	.Lq6m919
+.Ltd928:
+	test	$1, %eax
+	jnz	.Ltd930
+	jmp	.Lq6m894
+.Ltd930:
+	jmp	.Lq6m899
+.Lq6m894:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b895
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b895:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b896
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b896:
+	cmp	32(%rsp), %r10
+	je	.Lq6d898
+	.p2align	4
+.Lq6l897:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l897
+.Lq6d898:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e893
+.Lq6m899:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b900
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b900:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b901
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b901:
+	cmp	32(%rsp), %r10
+	je	.Lq6d903
+	.p2align	4
+.Lq6l902:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l902
+.Lq6d903:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e893
+.Lq6m904:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b905
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b905:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b906
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b906:
+	cmp	32(%rsp), %r10
+	je	.Lq6d908
+	.p2align	4
+.Lq6l907:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l907
+.Lq6d908:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e893
+.Lq6m909:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b910
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b910:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b911
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b911:
+	cmp	32(%rsp), %r10
+	je	.Lq6d913
+	.p2align	4
+.Lq6l912:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l912
+.Lq6d913:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e893
+.Lq6m914:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b915
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	mov	0(%r8), %rbx
+	sbb	%rbp, %rbx
+	mov	%rbx, %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b915:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b916
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	mov	0(%r8), %rbx
+	sbb	%rbp, %rbx
+	mov	%rbx, %rbp
+	mov	8(%r8), %rbx
+	sbb	%r12, %rbx
+	mov	%rbx, %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b916:
+	cmp	32(%rsp), %r10
+	je	.Lq6d918
+	.p2align	4
+.Lq6l917:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	mov	0(%r8), %rbx
+	sbb	%rbp, %rbx
+	mov	%rbx, %rbp
+	mov	8(%r8), %rbx
+	sbb	%r12, %rbx
+	mov	%rbx, %r12
+	mov	16(%r8), %rbx
+	sbb	%r13, %rbx
+	mov	%rbx, %r13
+	mov	24(%r8), %rbx
+	sbb	%r14, %rbx
+	mov	%rbx, %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l917
+.Lq6d918:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	mov	0(%r8), %rbx
+	sbb	%rbp, %rbx
+	mov	%rbx, %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e893
+.Lq6m919:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b920
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	mov	0(%r8), %rbx
+	sbb	%rbp, %rbx
+	mov	%rbx, %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b920:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b921
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	mov	0(%r8), %rbx
+	sbb	%rbp, %rbx
+	mov	%rbx, %rbp
+	mov	8(%r8), %rbx
+	sbb	%r12, %rbx
+	mov	%rbx, %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b921:
+	cmp	32(%rsp), %r10
+	je	.Lq6d923
+	.p2align	4
+.Lq6l922:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	mov	0(%r8), %rbx
+	sbb	%rbp, %rbx
+	mov	%rbx, %rbp
+	mov	8(%r8), %rbx
+	sbb	%r12, %rbx
+	mov	%rbx, %r12
+	mov	16(%r8), %rbx
+	sbb	%r13, %rbx
+	mov	%rbx, %r13
+	mov	24(%r8), %rbx
+	sbb	%r14, %rbx
+	mov	%rbx, %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l922
+.Lq6d923:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	mov	0(%r8), %rbx
+	sbb	%rbp, %rbx
+	mov	%rbx, %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e893
+.Lq6e893:
+	xor	%eax, %eax
+	add	$40, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5s_n, .-gtc_tc5s_n
+/* gtc_tc5q4_n: see the header.  */
+	.globl	gtc_tc5q4_n
+	.type	gtc_tc5q4_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5q4_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$56, %rsp
+	mov	112(%rsp), %rax
+	mov	%rax, %r10
+	shr	%rax			/* n8 */
+	mov	-8(%r8,%rax,8), %r11
+	sar	$63, %r11
+	mov	%r11, 24(%rsp)	/* q8's sign limb */
+	lea	-8(%r8,%r9,8), %r11	/* q8's limb n - 1, */
+	lea	24(%rsp), %rbx
+	cmp	%r9, %rax
+	cmovne	%rbx, %r11		/* or the sign limb where n8 < n */
+	mov	%r11, 48(%rsp)
+	lea	-1(%r9), %r11		/* n - 1 */
+	cmp	%r11, %rax
+	cmova	%r11, %rax		/* the first part: min (n8, n - 1) */
+	sub	%rax, %r11
+	mov	%r11, 32(%rsp)	/* the second: n - 1 - that */
+	mov	%rax, 40(%rsp)
+	movq	$0, 8(%rsp)	/* q0 + q8: CF = 0 */
+	movq	$1, 16(%rsp)	/* the complement's carry-in */
+	test	$1, %r10b
+	jnz	.Lq4m931
+	mov	(%rsi), %rbx
+	add	(%rdx), %rbx	/* s0 */
+	setnc	0(%rsp)	/* 1 - CF */
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq4b933
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	lea	8(%r8), %r8
+	mov	%rbp, %rbx
+.Lq4b933:
+	testb	$2, 40(%rsp)
+	jz	.Lq4b934
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	16(%rcx), %rcx
+	lea	16(%rdi), %rdi
+	lea	16(%r8), %r8
+	mov	%r10, %rbx
+.Lq4b934:
+	testb	$4, 40(%rsp)
+	jz	.Lq4b935
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	adc	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	adc	24(%rdx), %r12
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r10
+	or	%rax, %r10
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	16(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	24(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	32(%rcx), %rcx
+	lea	32(%rdi), %rdi
+	lea	32(%r8), %r8
+	mov	%r12, %rbx
+.Lq4b935:
+	shrq	$3, 40(%rsp)
+	jz	.Lq4d937
+	.p2align	4
+.Lq4l936:
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	adc	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	adc	24(%rdx), %r12
+	mov	32(%rsi), %r13
+	adc	32(%rdx), %r13
+	mov	40(%rsi), %r14
+	adc	40(%rdx), %r14
+	mov	48(%rsi), %r15
+	adc	48(%rdx), %r15
+	mov	56(%rsi), %r9
+	adc	56(%rdx), %r9
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r10
+	or	%rax, %r10
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	16(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	24(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rcx), %rax
+	adcx	32(%r8), %rax
+	not	%rax
+	adox	%r12, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rcx), %rax
+	adcx	40(%r8), %rax
+	not	%rax
+	adox	%r13, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rcx), %rax
+	adcx	48(%r8), %rax
+	not	%rax
+	adox	%r14, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rcx), %rax
+	adcx	56(%r8), %rax
+	not	%rax
+	adox	%r15, %rax
+	mov	%rax, 56(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	64(%rcx), %rcx
+	lea	64(%rdi), %rdi
+	lea	64(%r8), %r8
+	mov	%r9, %rbx
+	subq	$1, 40(%rsp)
+	jnz	.Lq4l936
+.Lq4d937:
+	lea	24(%rsp), %r8
+	testb	$1, 32(%rsp)
+	jz	.Lq4b938
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	mov	%rbp, %rbx
+.Lq4b938:
+	testb	$2, 32(%rsp)
+	jz	.Lq4b939
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	16(%rcx), %rcx
+	lea	16(%rdi), %rdi
+	mov	%r10, %rbx
+.Lq4b939:
+	testb	$4, 32(%rsp)
+	jz	.Lq4b940
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	adc	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	adc	24(%rdx), %r12
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r10
+	or	%rax, %r10
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	32(%rcx), %rcx
+	lea	32(%rdi), %rdi
+	mov	%r12, %rbx
+.Lq4b940:
+	shrq	$3, 32(%rsp)
+	jz	.Lq4d942
+.Lq4l941:
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	adc	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	adc	24(%rdx), %r12
+	mov	32(%rsi), %r13
+	adc	32(%rdx), %r13
+	mov	40(%rsi), %r14
+	adc	40(%rdx), %r14
+	mov	48(%rsi), %r15
+	adc	48(%rdx), %r15
+	mov	56(%rsi), %r9
+	adc	56(%rdx), %r9
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r10
+	or	%rax, %r10
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r12, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r13, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r14, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r15, %rax
+	mov	%rax, 56(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	64(%rcx), %rcx
+	lea	64(%rdi), %rdi
+	mov	%r9, %rbx
+	subq	$1, 32(%rsp)
+	jnz	.Lq4l941
+.Lq4d942:
+	mov	48(%rsp), %r8
+	sar	$2, %rbx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	jmp	.Lq4e932
+.Lq4m931:
+	mov	(%rsi), %rbx
+	sub	(%rdx), %rbx	/* s0 */
+	setnc	0(%rsp)	/* 1 - CF */
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq4b943
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	lea	8(%r8), %r8
+	mov	%rbp, %rbx
+.Lq4b943:
+	testb	$2, 40(%rsp)
+	jz	.Lq4b944
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	16(%rcx), %rcx
+	lea	16(%rdi), %rdi
+	lea	16(%r8), %r8
+	mov	%r10, %rbx
+.Lq4b944:
+	testb	$4, 40(%rsp)
+	jz	.Lq4b945
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	sbb	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	sbb	24(%rdx), %r12
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r10
+	or	%rax, %r10
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	16(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	24(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	32(%rcx), %rcx
+	lea	32(%rdi), %rdi
+	lea	32(%r8), %r8
+	mov	%r12, %rbx
+.Lq4b945:
+	shrq	$3, 40(%rsp)
+	jz	.Lq4d947
+	.p2align	4
+.Lq4l946:
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	sbb	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	sbb	24(%rdx), %r12
+	mov	32(%rsi), %r13
+	sbb	32(%rdx), %r13
+	mov	40(%rsi), %r14
+	sbb	40(%rdx), %r14
+	mov	48(%rsi), %r15
+	sbb	48(%rdx), %r15
+	mov	56(%rsi), %r9
+	sbb	56(%rdx), %r9
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r10
+	or	%rax, %r10
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	16(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	24(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rcx), %rax
+	adcx	32(%r8), %rax
+	not	%rax
+	adox	%r12, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rcx), %rax
+	adcx	40(%r8), %rax
+	not	%rax
+	adox	%r13, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rcx), %rax
+	adcx	48(%r8), %rax
+	not	%rax
+	adox	%r14, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rcx), %rax
+	adcx	56(%r8), %rax
+	not	%rax
+	adox	%r15, %rax
+	mov	%rax, 56(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	64(%rcx), %rcx
+	lea	64(%rdi), %rdi
+	lea	64(%r8), %r8
+	mov	%r9, %rbx
+	subq	$1, 40(%rsp)
+	jnz	.Lq4l946
+.Lq4d947:
+	lea	24(%rsp), %r8
+	testb	$1, 32(%rsp)
+	jz	.Lq4b948
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	mov	%rbp, %rbx
+.Lq4b948:
+	testb	$2, 32(%rsp)
+	jz	.Lq4b949
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	16(%rcx), %rcx
+	lea	16(%rdi), %rdi
+	mov	%r10, %rbx
+.Lq4b949:
+	testb	$4, 32(%rsp)
+	jz	.Lq4b950
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	sbb	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	sbb	24(%rdx), %r12
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r10
+	or	%rax, %r10
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	32(%rcx), %rcx
+	lea	32(%rdi), %rdi
+	mov	%r12, %rbx
+.Lq4b950:
+	shrq	$3, 32(%rsp)
+	jz	.Lq4d952
+.Lq4l951:
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	sbb	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	sbb	24(%rdx), %r12
+	mov	32(%rsi), %r13
+	sbb	32(%rdx), %r13
+	mov	40(%rsi), %r14
+	sbb	40(%rdx), %r14
+	mov	48(%rsi), %r15
+	sbb	48(%rdx), %r15
+	mov	56(%rsi), %r9
+	sbb	56(%rdx), %r9
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	%rbp, %rax
+	shl	$62, %rax
+	shr	$2, %rbx
+	or	%rax, %rbx
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %rbp
+	or	%rax, %rbp
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r10
+	or	%rax, %r10
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r14, %rax
+	shl	$62, %rax
+	shr	$2, %r13
+	or	%rax, %r13
+	mov	%r15, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r12, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r13, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r14, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r15, %rax
+	mov	%rax, 56(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	64(%rcx), %rcx
+	lea	64(%rdi), %rdi
+	mov	%r9, %rbx
+	subq	$1, 32(%rsp)
+	jnz	.Lq4l951
+.Lq4d952:
+	mov	48(%rsp), %r8
+	sar	$2, %rbx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	jmp	.Lq4e932
+.Lq4e932:
+	add	$56, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5q4_n, .-gtc_tc5q4_n
+#else
+	.p2align	5
+	.skip	32, 0xcc
+/* gtc_bfly_n: see the header.  */
+	.globl	gtc_bfly_n
+	.type	gtc_bfly_n, @function
+	.p2align	GTC_TC5_FA
+gtc_bfly_n:
+	mov	%rcx, %r10		/* yp: rcx counts */
+	lea	7(%r8), %rcx
+	shr	$3, %rcx		/* groups, the first one partial */
+	jz	.Lbz953
+	neg	%r8
+	and	$7, %r8d		/* the steps the first group skips */
+	lea	(,%r8,8), %r11
+	sub	%r11, %rdi
+	sub	%r11, %rsi
+	sub	%r11, %rdx
+	sub	%r11, %r10
+	lea	.Lbt962(%rip), %rax
+	movslq	(%rax,%r8,4), %r11
+	add	%r11, %rax
+	mov	$0x7fffffffffffffff, %r11
+	add	$1, %r11		/* OF = 1, CF = 0 */
+	jmp	*%rax
+.Lbe954:
+	mov	0(%rdx), %rax
+	mov	0(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 0(%rdi)
+	mov	%r11, 0(%rsi)
+.Lbe955:
+	mov	8(%rdx), %rax
+	mov	8(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 8(%rdi)
+	mov	%r11, 8(%rsi)
+.Lbe956:
+	mov	16(%rdx), %rax
+	mov	16(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 16(%rdi)
+	mov	%r11, 16(%rsi)
+.Lbe957:
+	mov	24(%rdx), %rax
+	mov	24(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 24(%rdi)
+	mov	%r11, 24(%rsi)
+.Lbe958:
+	mov	32(%rdx), %rax
+	mov	32(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 32(%rdi)
+	mov	%r11, 32(%rsi)
+.Lbe959:
+	mov	40(%rdx), %rax
+	mov	40(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 40(%rdi)
+	mov	%r11, 40(%rsi)
+.Lbe960:
+	mov	48(%rdx), %rax
+	mov	48(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 48(%rdi)
+	mov	%r11, 48(%rsi)
+.Lbe961:
+	mov	56(%rdx), %rax
+	mov	56(%r10), %r9
+	mov	%rax, %r11
+	adcx	%r9, %rax
+	not	%r9
+	adox	%r9, %r11
+	mov	%rax, 56(%rdi)
+	mov	%r11, 56(%rsi)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%r10), %r10
+	lea	-1(%rcx), %rcx
+	jrcxz	.Lbd963
+	jmp	.Lbe954
+.Lbd963:
+.Lbz953:
+	xor	%eax, %eax
+	ret
+	.p2align	2
+.Lbt962:
+	.long	.Lbe954 - .Lbt962
+	.long	.Lbe955 - .Lbt962
+	.long	.Lbe956 - .Lbt962
+	.long	.Lbe957 - .Lbt962
+	.long	.Lbe958 - .Lbt962
+	.long	.Lbe959 - .Lbt962
+	.long	.Lbe960 - .Lbt962
+	.long	.Lbe961 - .Lbt962
+	.size	gtc_bfly_n, .-gtc_bfly_n
+/* gtc_tc5s_n: see the header.  */
+	.globl	gtc_tc5s_n
+	.type	gtc_tc5s_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5s_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$40, %rsp
+	mov	%rdx, %r10
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mov	96(%rsp), %eax
+	and	$7, %eax
+	test	$4, %eax
+	jnz	.Ltd996
+	test	$2, %eax
+	jnz	.Ltd997
+	test	$1, %eax
+	jnz	.Ltd998
+	jmp	.Lq6m966
+.Ltd998:
+	jmp	.Lq6m971
+.Ltd997:
+	test	$1, %eax
+	jnz	.Ltd999
+	jmp	.Lq6m976
+.Ltd999:
+	jmp	.Lq6m981
+.Ltd996:
+	test	$2, %eax
+	jnz	.Ltd1000
+	test	$1, %eax
+	jnz	.Ltd1001
+	jmp	.Lq6m986
+.Ltd1001:
+	jmp	.Lq6m991
+.Ltd1000:
+	test	$1, %eax
+	jnz	.Ltd1002
+	jmp	.Lq6m966
+.Ltd1002:
+	jmp	.Lq6m971
+.Lq6m966:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b967
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b967:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b968
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b968:
+	cmp	32(%rsp), %r10
+	je	.Lq6d970
+	.p2align	4
+.Lq6l969:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l969
+.Lq6d970:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e965
+.Lq6m971:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b972
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b972:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b973
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b973:
+	cmp	32(%rsp), %r10
+	je	.Lq6d975
+	.p2align	4
+.Lq6l974:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	adc	8(%r8), %r12
+	adc	16(%r8), %r13
+	adc	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l974
+.Lq6d975:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e965
+.Lq6m976:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b977
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b977:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b978
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b978:
+	cmp	32(%rsp), %r10
+	je	.Lq6d980
+	.p2align	4
+.Lq6l979:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l979
+.Lq6d980:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e965
+.Lq6m981:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	testb	$1, 24(%rsp)
+	jz	.Lq6b982
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b982:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b983
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b983:
+	cmp	32(%rsp), %r10
+	je	.Lq6d985
+	.p2align	4
+.Lq6l984:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	sbb	8(%r8), %r12
+	sbb	16(%r8), %r13
+	sbb	24(%r8), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 8(%rdi)
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 16(%rdi)
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 24(%rdi)
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l984
+.Lq6d985:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp
+	setnc	8(%rsp)	/* 1 - CF */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, 0(%rdi)
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e965
+.Lq6m986:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	add	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	xor	%ebx, %ebx		/* the high limb before: 0 */
+	testb	$1, 24(%rsp)
+	jz	.Lq6b987
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp	/* t - c */
+	setnc	8(%rsp)	/* 1 - CF */
+	test	%rax, %rax		/* CF = OF = 0 */
+	mulx	%rbp, %rbp, %rax
+	adcx	%rbx, %rbp
+	adox	%r11, %rbp	/* q */
+	mov	%rbp, 0(%rdi)
+	mov	%rbp, %r11
+	mov	%rax, %rbx
+	mov	$0, %eax
+	adcx	%rax, %rbx		/* both carries in */
+	adox	%rax, %rbx
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b987:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b988
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp	/* t - c */
+	sbb	8(%r8), %r12	/* t - c */
+	setnc	8(%rsp)	/* 1 - CF */
+	test	%rax, %rax		/* CF = OF = 0 */
+	mulx	%rbp, %rbp, %rax
+	adcx	%rbx, %rbp
+	adox	%r11, %rbp	/* q */
+	mov	%rbp, 0(%rdi)
+	mulx	%r12, %r12, %rbx
+	adcx	%rax, %r12
+	adox	%rbp, %r12	/* q */
+	mov	%r12, 8(%rdi)
+	mov	%r12, %r11
+	mov	$0, %eax
+	adcx	%rax, %rbx		/* both carries in */
+	adox	%rax, %rbx
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b988:
+	cmp	32(%rsp), %r10
+	je	.Lq6d990
+	.p2align	4
+.Lq6l989:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	adc	0(%rcx), %r12
+	mov	8(%r10), %r13
+	adc	8(%rcx), %r13
+	mov	16(%r10), %r14
+	adc	16(%rcx), %r14
+	mov	24(%r10), %r15
+	adc	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp	/* t - c */
+	sbb	8(%r8), %r12	/* t - c */
+	sbb	16(%r8), %r13	/* t - c */
+	sbb	24(%r8), %r14	/* t - c */
+	setnc	8(%rsp)	/* 1 - CF */
+	test	%rax, %rax		/* CF = OF = 0 */
+	mulx	%rbp, %rbp, %rax
+	adcx	%rbx, %rbp
+	adox	%r11, %rbp	/* q */
+	mov	%rbp, 0(%rdi)
+	mulx	%r12, %r12, %rbx
+	adcx	%rax, %r12
+	adox	%rbp, %r12	/* q */
+	mov	%r12, 8(%rdi)
+	mulx	%r13, %r13, %rax
+	adcx	%rbx, %r13
+	adox	%r12, %r13	/* q */
+	mov	%r13, 16(%rdi)
+	mulx	%r14, %r14, %rbx
+	adcx	%rax, %r14
+	adox	%r13, %r14	/* q */
+	mov	%r14, 24(%rdi)
+	mov	%r14, %r11
+	mov	$0, %eax
+	adcx	%rax, %rbx		/* both carries in */
+	adox	%rax, %rbx
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l989
+.Lq6d990:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp	/* t - c */
+	setnc	8(%rsp)	/* 1 - CF */
+	test	%rax, %rax		/* CF = OF = 0 */
+	mulx	%rbp, %rbp, %rax
+	adcx	%rbx, %rbp
+	adox	%r11, %rbp	/* q */
+	mov	%rbp, 0(%rdi)
+	mov	%rbp, %r11
+	mov	%rax, %rbx
+	mov	$0, %eax
+	adcx	%rax, %rbx		/* both carries in */
+	adox	%rax, %rbx
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e965
+.Lq6m991:
+	lea	-1(%r9), %r9
+	mov	%r9, 24(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 32(%rsp)	/* x's end */
+	mov	(%r10), %rbp
+	sub	(%rcx), %rbp	/* s0 */
+	sbb	%r9, %r9		/* -CF */
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	xor	%r11d, %r11d
+	xor	%ebx, %ebx		/* the high limb before: 0 */
+	testb	$1, 24(%rsp)
+	jz	.Lq6b992
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	lea	8(%r10), %r10
+	lea	8(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp	/* t - c */
+	setnc	8(%rsp)	/* 1 - CF */
+	test	%rax, %rax		/* CF = OF = 0 */
+	mulx	%rbp, %rbp, %rax
+	adcx	%rbx, %rbp
+	adox	%r11, %rbp	/* q */
+	mov	%rbp, 0(%rdi)
+	mov	%rbp, %r11
+	mov	%rax, %rbx
+	mov	$0, %eax
+	adcx	%rax, %rbx		/* both carries in */
+	adox	%rax, %rbx
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	mov	%r12, %rbp
+.Lq6b992:
+	testb	$2, 24(%rsp)
+	jz	.Lq6b993
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	lea	16(%r10), %r10
+	lea	16(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp	/* t - c */
+	sbb	8(%r8), %r12	/* t - c */
+	setnc	8(%rsp)	/* 1 - CF */
+	test	%rax, %rax		/* CF = OF = 0 */
+	mulx	%rbp, %rbp, %rax
+	adcx	%rbx, %rbp
+	adox	%r11, %rbp	/* q */
+	mov	%rbp, 0(%rdi)
+	mulx	%r12, %r12, %rbx
+	adcx	%rax, %r12
+	adox	%rbp, %r12	/* q */
+	mov	%r12, 8(%rdi)
+	mov	%r12, %r11
+	mov	$0, %eax
+	adcx	%rax, %rbx		/* both carries in */
+	adox	%rax, %rbx
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	16(%r8), %r8
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	mov	%r13, %rbp
+.Lq6b993:
+	cmp	32(%rsp), %r10
+	je	.Lq6d995
+	.p2align	4
+.Lq6l994:
+	bt	$0, %r9		/* CF back */
+	mov	0(%r10), %r12
+	sbb	0(%rcx), %r12
+	mov	8(%r10), %r13
+	sbb	8(%rcx), %r13
+	mov	16(%r10), %r14
+	sbb	16(%rcx), %r14
+	mov	24(%r10), %r15
+	sbb	24(%rcx), %r15
+	sbb	%r9, %r9		/* -CF */
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	lea	32(%r10), %r10
+	lea	32(%rcx), %rcx
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp	/* t - c */
+	sbb	8(%r8), %r12	/* t - c */
+	sbb	16(%r8), %r13	/* t - c */
+	sbb	24(%r8), %r14	/* t - c */
+	setnc	8(%rsp)	/* 1 - CF */
+	test	%rax, %rax		/* CF = OF = 0 */
+	mulx	%rbp, %rbp, %rax
+	adcx	%rbx, %rbp
+	adox	%r11, %rbp	/* q */
+	mov	%rbp, 0(%rdi)
+	mulx	%r12, %r12, %rbx
+	adcx	%rax, %r12
+	adox	%rbp, %r12	/* q */
+	mov	%r12, 8(%rdi)
+	mulx	%r13, %r13, %rax
+	adcx	%rbx, %r13
+	adox	%r12, %r13	/* q */
+	mov	%r13, 16(%rdi)
+	mulx	%r14, %r14, %rbx
+	adcx	%rax, %r14
+	adox	%r13, %r14	/* q */
+	mov	%r14, 24(%rdi)
+	mov	%r14, %r11
+	mov	$0, %eax
+	adcx	%rax, %rbx		/* both carries in */
+	adox	%rax, %rbx
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	mov	8(%r8), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rsi)
+	mov	16(%r8), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rsi)
+	mov	24(%r8), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	32(%r8), %r8
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	mov	%r15, %rbp
+	cmp	32(%rsp), %r10
+	jne	.Lq6l994
+.Lq6d995:
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%r8), %rbp	/* t - c */
+	setnc	8(%rsp)	/* 1 - CF */
+	test	%rax, %rax		/* CF = OF = 0 */
+	mulx	%rbp, %rbp, %rax
+	adcx	%rbx, %rbp
+	adox	%r11, %rbp	/* q */
+	mov	%rbp, 0(%rdi)
+	mov	%rbp, %r11
+	mov	%rax, %rbx
+	mov	$0, %eax
+	adcx	%rax, %rbx		/* both carries in */
+	adox	%rax, %rbx
+	cmpb	$1, 16(%rsp)	/* CF back */
+	mov	0(%r8), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rsi)
+	setnc	16(%rsp)	/* 1 - CF */
+	lea	8(%r8), %r8
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	jmp	.Lq6e965
+.Lq6e965:
+	xor	%eax, %eax
+	add	$40, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5s_n, .-gtc_tc5s_n
+/* gtc_tc5q4_n: see the header.  */
+	.globl	gtc_tc5q4_n
+	.type	gtc_tc5q4_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5q4_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$56, %rsp
+	mov	112(%rsp), %rax
+	mov	%rax, %r10
+	shr	%rax			/* n8 */
+	mov	-8(%r8,%rax,8), %r11
+	sar	$63, %r11
+	mov	%r11, 24(%rsp)	/* q8's sign limb */
+	lea	-8(%r8,%r9,8), %r11	/* q8's limb n - 1, */
+	lea	24(%rsp), %rbx
+	cmp	%r9, %rax
+	cmovne	%rbx, %r11		/* or the sign limb where n8 < n */
+	mov	%r11, 48(%rsp)
+	lea	-1(%r9), %r11		/* n - 1 */
+	cmp	%r11, %rax
+	cmova	%r11, %rax		/* the first part: min (n8, n - 1) */
+	sub	%rax, %r11
+	mov	%r11, 32(%rsp)	/* the second: n - 1 - that */
+	mov	%rax, 40(%rsp)
+	movq	$0, 8(%rsp)	/* q0 + q8: CF = 0 */
+	movq	$1, 16(%rsp)	/* the complement's carry-in */
+	test	$1, %r10b
+	jnz	.Lq4m1003
+	mov	(%rsi), %rbx
+	add	(%rdx), %rbx	/* s0 */
+	setnc	0(%rsp)	/* 1 - CF */
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq4b1005
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	lea	8(%r8), %r8
+	mov	%rbp, %rbx
+.Lq4b1005:
+	testb	$2, 40(%rsp)
+	jz	.Lq4b1006
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	16(%rcx), %rcx
+	lea	16(%rdi), %rdi
+	lea	16(%r8), %r8
+	mov	%r10, %rbx
+.Lq4b1006:
+	testb	$4, 40(%rsp)
+	jz	.Lq4b1007
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	adc	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	adc	24(%rdx), %r12
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	shrd	$2, %r11, %r10
+	shrd	$2, %r12, %r11
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	16(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	24(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	32(%rcx), %rcx
+	lea	32(%rdi), %rdi
+	lea	32(%r8), %r8
+	mov	%r12, %rbx
+.Lq4b1007:
+	shrq	$3, 40(%rsp)
+	jz	.Lq4d1009
+	.p2align	4
+.Lq4l1008:
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	adc	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	adc	24(%rdx), %r12
+	mov	32(%rsi), %r13
+	adc	32(%rdx), %r13
+	mov	40(%rsi), %r14
+	adc	40(%rdx), %r14
+	mov	48(%rsi), %r15
+	adc	48(%rdx), %r15
+	mov	56(%rsi), %r9
+	adc	56(%rdx), %r9
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	shrd	$2, %r11, %r10
+	shrd	$2, %r12, %r11
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	16(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	24(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rcx), %rax
+	adcx	32(%r8), %rax
+	not	%rax
+	adox	%r12, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rcx), %rax
+	adcx	40(%r8), %rax
+	not	%rax
+	adox	%r13, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rcx), %rax
+	adcx	48(%r8), %rax
+	not	%rax
+	adox	%r14, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rcx), %rax
+	adcx	56(%r8), %rax
+	not	%rax
+	adox	%r15, %rax
+	mov	%rax, 56(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	64(%rcx), %rcx
+	lea	64(%rdi), %rdi
+	lea	64(%r8), %r8
+	mov	%r9, %rbx
+	subq	$1, 40(%rsp)
+	jnz	.Lq4l1008
+.Lq4d1009:
+	lea	24(%rsp), %r8
+	testb	$1, 32(%rsp)
+	jz	.Lq4b1010
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	mov	%rbp, %rbx
+.Lq4b1010:
+	testb	$2, 32(%rsp)
+	jz	.Lq4b1011
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	16(%rcx), %rcx
+	lea	16(%rdi), %rdi
+	mov	%r10, %rbx
+.Lq4b1011:
+	testb	$4, 32(%rsp)
+	jz	.Lq4b1012
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	adc	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	adc	24(%rdx), %r12
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	shrd	$2, %r11, %r10
+	shrd	$2, %r12, %r11
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	32(%rcx), %rcx
+	lea	32(%rdi), %rdi
+	mov	%r12, %rbx
+.Lq4b1012:
+	shrq	$3, 32(%rsp)
+	jz	.Lq4d1014
+.Lq4l1013:
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	adc	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	adc	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	adc	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	adc	24(%rdx), %r12
+	mov	32(%rsi), %r13
+	adc	32(%rdx), %r13
+	mov	40(%rsi), %r14
+	adc	40(%rdx), %r14
+	mov	48(%rsi), %r15
+	adc	48(%rdx), %r15
+	mov	56(%rsi), %r9
+	adc	56(%rdx), %r9
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	shrd	$2, %r11, %r10
+	shrd	$2, %r12, %r11
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r12, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r13, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r14, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r15, %rax
+	mov	%rax, 56(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	64(%rcx), %rcx
+	lea	64(%rdi), %rdi
+	mov	%r9, %rbx
+	subq	$1, 32(%rsp)
+	jnz	.Lq4l1013
+.Lq4d1014:
+	mov	48(%rsp), %r8
+	sar	$2, %rbx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	jmp	.Lq4e1004
+.Lq4m1003:
+	mov	(%rsi), %rbx
+	sub	(%rdx), %rbx	/* s0 */
+	setnc	0(%rsp)	/* 1 - CF */
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq4b1015
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	lea	8(%r8), %r8
+	mov	%rbp, %rbx
+.Lq4b1015:
+	testb	$2, 40(%rsp)
+	jz	.Lq4b1016
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	16(%rcx), %rcx
+	lea	16(%rdi), %rdi
+	lea	16(%r8), %r8
+	mov	%r10, %rbx
+.Lq4b1016:
+	testb	$4, 40(%rsp)
+	jz	.Lq4b1017
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	sbb	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	sbb	24(%rdx), %r12
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	shrd	$2, %r11, %r10
+	shrd	$2, %r12, %r11
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	16(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	24(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	32(%rcx), %rcx
+	lea	32(%rdi), %rdi
+	lea	32(%r8), %r8
+	mov	%r12, %rbx
+.Lq4b1017:
+	shrq	$3, 40(%rsp)
+	jz	.Lq4d1019
+	.p2align	4
+.Lq4l1018:
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	sbb	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	sbb	24(%rdx), %r12
+	mov	32(%rsi), %r13
+	sbb	32(%rdx), %r13
+	mov	40(%rsi), %r14
+	sbb	40(%rdx), %r14
+	mov	48(%rsi), %r15
+	sbb	48(%rdx), %r15
+	mov	56(%rsi), %r9
+	sbb	56(%rdx), %r9
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	shrd	$2, %r11, %r10
+	shrd	$2, %r12, %r11
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	8(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	16(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	24(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rcx), %rax
+	adcx	32(%r8), %rax
+	not	%rax
+	adox	%r12, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rcx), %rax
+	adcx	40(%r8), %rax
+	not	%rax
+	adox	%r13, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rcx), %rax
+	adcx	48(%r8), %rax
+	not	%rax
+	adox	%r14, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rcx), %rax
+	adcx	56(%r8), %rax
+	not	%rax
+	adox	%r15, %rax
+	mov	%rax, 56(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	64(%rcx), %rcx
+	lea	64(%rdi), %rdi
+	lea	64(%r8), %r8
+	mov	%r9, %rbx
+	subq	$1, 40(%rsp)
+	jnz	.Lq4l1018
+.Lq4d1019:
+	lea	24(%rsp), %r8
+	testb	$1, 32(%rsp)
+	jz	.Lq4b1020
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	mov	%rbp, %rbx
+.Lq4b1020:
+	testb	$2, 32(%rsp)
+	jz	.Lq4b1021
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	16(%rcx), %rcx
+	lea	16(%rdi), %rdi
+	mov	%r10, %rbx
+.Lq4b1021:
+	testb	$4, 32(%rsp)
+	jz	.Lq4b1022
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	sbb	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	sbb	24(%rdx), %r12
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	shrd	$2, %r11, %r10
+	shrd	$2, %r12, %r11
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	32(%rcx), %rcx
+	lea	32(%rdi), %rdi
+	mov	%r12, %rbx
+.Lq4b1022:
+	shrq	$3, 32(%rsp)
+	jz	.Lq4d1024
+.Lq4l1023:
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rsi), %rbp
+	sbb	0(%rdx), %rbp
+	mov	8(%rsi), %r10
+	sbb	8(%rdx), %r10
+	mov	16(%rsi), %r11
+	sbb	16(%rdx), %r11
+	mov	24(%rsi), %r12
+	sbb	24(%rdx), %r12
+	mov	32(%rsi), %r13
+	sbb	32(%rdx), %r13
+	mov	40(%rsi), %r14
+	sbb	40(%rdx), %r14
+	mov	48(%rsi), %r15
+	sbb	48(%rdx), %r15
+	mov	56(%rsi), %r9
+	sbb	56(%rdx), %r9
+	setnc	0(%rsp)	/* 1 - CF */
+	shrd	$2, %rbp, %rbx
+	shrd	$2, %r10, %rbp
+	shrd	$2, %r11, %r10
+	shrd	$2, %r12, %r11
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbp, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r10, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r11, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r12, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r13, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r14, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%r15, %rax
+	mov	%rax, 56(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	64(%rcx), %rcx
+	lea	64(%rdi), %rdi
+	mov	%r9, %rbx
+	subq	$1, 32(%rsp)
+	jnz	.Lq4l1023
+.Lq4d1024:
+	mov	48(%rsp), %r8
+	sar	$2, %rbx
+	cmpb	$0x81, 16(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	8(%rsp), %rax	/* CF back */
+	mov	0(%rcx), %rax
+	adcx	0(%r8), %rax
+	not	%rax
+	adox	%rbx, %rax
+	mov	%rax, 0(%rdi)
+	seto	16(%rsp)
+	sbb	%rax, %rax
+	mov	%rax, 8(%rsp)	/* -CF */
+	lea	8(%rcx), %rcx
+	lea	8(%rdi), %rdi
+	jmp	.Lq4e1004
+.Lq4e1004:
+	add	$56, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5q4_n, .-gtc_tc5q4_n
+#endif
+/* gtc_bflyq_n: see the header.  */
+	.globl	gtc_bflyq_n
+	.type	gtc_bflyq_n, @function
+	.p2align	GTC_TC5_FA
+gtc_bflyq_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$24, %rsp
+	mov	(%rdx), %rax
+	mov	%rax, %r11
+	add	(%rcx), %rax
+	setnc	0(%rsp)
+	sub	(%rcx), %r11
+	setnc	8(%rsp)
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	-1(%r8), %r8
+	test	$1, %r8b
+	jz	.Lbqb1025
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rdx), %rbx
+	mov	%rbx, %r12
+	adc	0(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rcx), %r12
+	setnc	8(%rsp)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rdi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	mov	%rbx, %rax
+	mov	%r12, %r11
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lbqb1025:
+	test	$2, %r8b
+	jz	.Lbqb1026
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rdx), %rbx
+	mov	%rbx, %r12
+	adc	0(%rcx), %rbx
+	mov	8(%rdx), %rbp
+	mov	%rbp, %r13
+	adc	8(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rcx), %r12
+	sbb	8(%rcx), %r13
+	setnc	8(%rsp)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rdi)
+	shrd	$2, %rbp, %rbx
+	mov	%rbx, 8(%rdi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rsi)
+	mov	%rbp, %rax
+	mov	%r13, %r11
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lbqb1026:
+	shr	$2, %r8
+	jz	.Lbqd1028
+	.p2align	4
+.Lbql1027:
+	cmpb	$1, 0(%rsp)	/* CF back */
+	mov	0(%rdx), %rbx
+	mov	%rbx, %r12
+	adc	0(%rcx), %rbx
+	mov	8(%rdx), %rbp
+	mov	%rbp, %r13
+	adc	8(%rcx), %rbp
+	mov	16(%rdx), %r9
+	mov	%r9, %r14
+	adc	16(%rcx), %r9
+	mov	24(%rdx), %r10
+	mov	%r10, %r15
+	adc	24(%rcx), %r10
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rcx), %r12
+	sbb	8(%rcx), %r13
+	sbb	16(%rcx), %r14
+	sbb	24(%rcx), %r15
+	setnc	8(%rsp)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rdi)
+	shrd	$2, %rbp, %rbx
+	mov	%rbx, 8(%rdi)
+	shrd	$2, %r9, %rbp
+	mov	%rbp, 16(%rdi)
+	shrd	$2, %r10, %r9
+	mov	%r9, 24(%rdi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rsi)
+	shrd	$2, %r14, %r13
+	mov	%r13, 16(%rsi)
+	shrd	$2, %r15, %r14
+	mov	%r14, 24(%rsi)
+	mov	%r10, %rax
+	mov	%r15, %r11
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	dec	%r8
+	jnz	.Lbql1027
+.Lbqd1028:
+	sar	$2, %rax
+	mov	%rax, (%rdi)
+	sar	$2, %r11
+	mov	%r11, (%rsi)
+	xor	%eax, %eax
+	add	$24, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_bflyq_n, .-gtc_bflyq_n
+/* gtc_tc5a_n: see the header.  */
+	.globl	gtc_tc5a_n
+	.type	gtc_tc5a_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5a_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	mov	%rcx, %r10
+	sub	%r9, %r8		/* the limbs above q8 */
+	lea	3(%r9), %rcx
+	shr	$2, %rcx		/* turns over q8, the first partial */
+	neg	%r9
+	and	$3, %r9d		/* the steps the first one skips */
+	lea	(,%r9,8), %r12
+	sub	%r12, %rdi
+	sub	%r12, %rsi
+	sub	%r12, %rdx
+	sub	%r12, %r10
+	lea	.Lat1033(%rip), %r13
+	movslq	(%r13,%r9,4), %r14
+	add	%r14, %r13
+	mov	$62, %r15d
+	mov	$63, %eax
+	xor	%r11d, %r11d
+	xor	%ebx, %ebx
+	xor	%ebp, %ebp		/* the limbs below: 0; CF = OF = 0 */
+	stc
+	jmp	*%r13
+.Lae1029:
+	shrx	%r15, %r11, %r12
+	mov	0(%r10), %r11
+	lea	(%r12,%r11,4), %r13	/* 4 q8 */
+	mov	0(%rdx), %r14
+	not	%r14
+	adcx	%r14, %r13		/* t */
+	shrx	%r15, %rbx, %r12
+	mov	%r13, %rbx
+	lea	(%r12,%r13,4), %r13	/* 4 t */
+	adox	0(%rsi), %r13	/* u */
+	shrx	%rax, %rbp, %r12
+	mov	%r13, %rbp
+	lea	(%r12,%r13,2), %r13	/* 2 u */
+	mov	%r13, 0(%rdi)
+.Lae1030:
+	shrx	%r15, %r11, %r12
+	mov	8(%r10), %r11
+	lea	(%r12,%r11,4), %r13	/* 4 q8 */
+	mov	8(%rdx), %r14
+	not	%r14
+	adcx	%r14, %r13		/* t */
+	shrx	%r15, %rbx, %r12
+	mov	%r13, %rbx
+	lea	(%r12,%r13,4), %r13	/* 4 t */
+	adox	8(%rsi), %r13	/* u */
+	shrx	%rax, %rbp, %r12
+	mov	%r13, %rbp
+	lea	(%r12,%r13,2), %r13	/* 2 u */
+	mov	%r13, 8(%rdi)
+.Lae1031:
+	shrx	%r15, %r11, %r12
+	mov	16(%r10), %r11
+	lea	(%r12,%r11,4), %r13	/* 4 q8 */
+	mov	16(%rdx), %r14
+	not	%r14
+	adcx	%r14, %r13		/* t */
+	shrx	%r15, %rbx, %r12
+	mov	%r13, %rbx
+	lea	(%r12,%r13,4), %r13	/* 4 t */
+	adox	16(%rsi), %r13	/* u */
+	shrx	%rax, %rbp, %r12
+	mov	%r13, %rbp
+	lea	(%r12,%r13,2), %r13	/* 2 u */
+	mov	%r13, 16(%rdi)
+.Lae1032:
+	shrx	%r15, %r11, %r12
+	mov	24(%r10), %r11
+	lea	(%r12,%r11,4), %r13	/* 4 q8 */
+	mov	24(%rdx), %r14
+	not	%r14
+	adcx	%r14, %r13		/* t */
+	shrx	%r15, %rbx, %r12
+	mov	%r13, %rbx
+	lea	(%r12,%r13,4), %r13	/* 4 t */
+	adox	24(%rsi), %r13	/* u */
+	shrx	%rax, %rbp, %r12
+	mov	%r13, %rbp
+	lea	(%r12,%r13,2), %r13	/* 2 u */
+	mov	%r13, 24(%rdi)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%r10), %r10
+	lea	-1(%rcx), %rcx
+	jrcxz	.Law1034
+	jmp	.Lae1029
+.Law1034:
+	mov	%r8, %rcx
+	sarx	%rax, %r11, %r10	/* q8's sign */
+	jrcxz	.Lad1036
+.Lal1035:
+	shrx	%r15, %r11, %r12
+	mov	%r10, %r11
+	lea	(%r12,%r11,4), %r13	/* 4 q8 */
+	mov	0(%rdx), %r14
+	not	%r14
+	adcx	%r14, %r13		/* t */
+	shrx	%r15, %rbx, %r12
+	mov	%r13, %rbx
+	lea	(%r12,%r13,4), %r13	/* 4 t */
+	adox	0(%rsi), %r13	/* u */
+	shrx	%rax, %rbp, %r12
+	mov	%r13, %rbp
+	lea	(%r12,%r13,2), %r13	/* 2 u */
+	mov	%r13, 0(%rdi)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	-1(%rcx), %rcx
+	jrcxz	.Lad1036
+	jmp	.Lal1035
+.Lad1036:
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.p2align	2
+.Lat1033:
+	.long	.Lae1029 - .Lat1033
+	.long	.Lae1030 - .Lat1033
+	.long	.Lae1031 - .Lat1033
+	.long	.Lae1032 - .Lat1033
+	.size	gtc_tc5a_n, .-gtc_tc5a_n
+/* gtc_tc5uy_n: see the header.  */
+	.globl	gtc_tc5uy_n
+	.type	gtc_tc5uy_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5uy_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$88, %rsp
+	mov	144(%rsp), %rax
+	mov	%rax, %r10
+	shr	$2, %rax		/* n8 */
+	sub	%rax, %r9
+	mov	%r9, 48(%rsp)	/* n - n8 */
+	mov	-8(%r8,%rax,8), %rbx
+	sar	$63, %rbx
+	mov	%rbx, 56(%rsp)	/* q8's sign limb */
+	mov	%rax, 80(%rsp)
+	movq	$1, 72(%rsp)	/* CF = 0 */
+	mov	152(%rsp), %r9
+	movq	$1, 0(%rsp)	/* CF = 0 */
+	movq	$0, 24(%rsp)
+	movq	$1, 8(%rsp)	/* CF = 0 */
+	movq	$0, 32(%rsp)
+	movq	$1, 16(%rsp)	/* CF = 0 */
+	movq	$0, 40(%rsp)
+	test	$2, %r10b
+	jnz	.Lu5p1039
+	test	$1, %r10b
+	jnz	.Lu5p1038
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1041
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1041:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1042
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1042:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1043
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	mov	16(%r9), %r15
+	sbb	%rbp, %r15
+	mov	%r15, 16(%r9)
+	mov	24(%r9), %r15
+	sbb	%r10, %r15
+	mov	%r15, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1043:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1045
+	.p2align	4
+.Lu5l1044:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	mov	16(%r9), %r15
+	sbb	%rbp, %r15
+	mov	%r15, 16(%r9)
+	mov	24(%r9), %r15
+	sbb	%r10, %r15
+	mov	%r15, 24(%r9)
+	mov	32(%r9), %r15
+	sbb	%r11, %r15
+	mov	%r15, 32(%r9)
+	mov	40(%r9), %r15
+	sbb	%r12, %r15
+	mov	%r15, 40(%r9)
+	mov	48(%r9), %r15
+	sbb	%r13, %r15
+	mov	%r15, 48(%r9)
+	mov	56(%r9), %r15
+	sbb	%r14, %r15
+	mov	%r15, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1044
+.Lu5d1045:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1037
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1046
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1046:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1047
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1047:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1048
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	mov	16(%r9), %r15
+	sbb	%rbp, %r15
+	mov	%r15, 16(%r9)
+	mov	24(%r9), %r15
+	sbb	%r10, %r15
+	mov	%r15, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1048:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1050
+	.p2align	4
+.Lu5l1049:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	mov	16(%r9), %r15
+	sbb	%rbp, %r15
+	mov	%r15, 16(%r9)
+	mov	24(%r9), %r15
+	sbb	%r10, %r15
+	mov	%r15, 24(%r9)
+	mov	32(%r9), %r15
+	sbb	%r11, %r15
+	mov	%r15, 32(%r9)
+	mov	40(%r9), %r15
+	sbb	%r12, %r15
+	mov	%r15, 40(%r9)
+	mov	48(%r9), %r15
+	sbb	%r13, %r15
+	mov	%r15, 48(%r9)
+	mov	56(%r9), %r15
+	sbb	%r14, %r15
+	mov	%r15, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1049
+.Lu5d1050:
+	jmp	.Lu5e1037
+.Lu5p1038:
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1051
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1051:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1052
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1052:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1053
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	mov	16(%r9), %r15
+	sbb	%rbp, %r15
+	mov	%r15, 16(%r9)
+	mov	24(%r9), %r15
+	sbb	%r10, %r15
+	mov	%r15, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1053:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1055
+	.p2align	4
+.Lu5l1054:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	mov	16(%r9), %r15
+	sbb	%rbp, %r15
+	mov	%r15, 16(%r9)
+	mov	24(%r9), %r15
+	sbb	%r10, %r15
+	mov	%r15, 24(%r9)
+	mov	32(%r9), %r15
+	sbb	%r11, %r15
+	mov	%r15, 32(%r9)
+	mov	40(%r9), %r15
+	sbb	%r12, %r15
+	mov	%r15, 40(%r9)
+	mov	48(%r9), %r15
+	sbb	%r13, %r15
+	mov	%r15, 48(%r9)
+	mov	56(%r9), %r15
+	sbb	%r14, %r15
+	mov	%r15, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1054
+.Lu5d1055:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1037
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1056
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1056:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1057
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1057:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1058
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	mov	16(%r9), %r15
+	sbb	%rbp, %r15
+	mov	%r15, 16(%r9)
+	mov	24(%r9), %r15
+	sbb	%r10, %r15
+	mov	%r15, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1058:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1060
+	.p2align	4
+.Lu5l1059:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	mov	0(%r9), %r15
+	sbb	%rax, %r15
+	mov	%r15, 0(%r9)
+	mov	8(%r9), %r15
+	sbb	%rbx, %r15
+	mov	%r15, 8(%r9)
+	mov	16(%r9), %r15
+	sbb	%rbp, %r15
+	mov	%r15, 16(%r9)
+	mov	24(%r9), %r15
+	sbb	%r10, %r15
+	mov	%r15, 24(%r9)
+	mov	32(%r9), %r15
+	sbb	%r11, %r15
+	mov	%r15, 32(%r9)
+	mov	40(%r9), %r15
+	sbb	%r12, %r15
+	mov	%r15, 40(%r9)
+	mov	48(%r9), %r15
+	sbb	%r13, %r15
+	mov	%r15, 48(%r9)
+	mov	56(%r9), %r15
+	sbb	%r14, %r15
+	mov	%r15, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1059
+.Lu5d1060:
+	jmp	.Lu5e1037
+.Lu5p1039:
+	test	$1, %r10b
+	jnz	.Lu5p1040
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1061
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1061:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1062
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1062:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1063
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1063:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1065
+	.p2align	4
+.Lu5l1064:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1064
+.Lu5d1065:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1037
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1066
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1066:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1067
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1067:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1068
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1068:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1070
+	.p2align	4
+.Lu5l1069:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1069
+.Lu5d1070:
+	jmp	.Lu5e1037
+.Lu5p1040:
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1071
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1071:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1072
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1072:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1073
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1073:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1075
+	.p2align	4
+.Lu5l1074:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1074
+.Lu5d1075:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1037
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1076
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1076:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1077
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1077:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1078
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1078:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1080
+	.p2align	4
+.Lu5l1079:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1079
+.Lu5d1080:
+	jmp	.Lu5e1037
+.Lu5e1037:
+	add	$88, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5uy_n, .-gtc_tc5uy_n
+#if defined (__znver1__) || defined (__znver2__) || defined (__znver3__) || defined (__znver4__) || defined (__znver5__)
+/* gtc_tc5quad_n: see the header.  */
+	.globl	gtc_tc5quad_n
+	.type	gtc_tc5quad_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5quad_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$56, %rsp
+	lea	-1(%r8), %rax
+	mov	%rax, 48(%rsp)	/* n - 1 */
+	and	$7, %r9d
+	test	$4, %r9d
+	jnz	.Ltd1123
+	test	$2, %r9d
+	jnz	.Ltd1124
+	test	$1, %r9d
+	jnz	.Ltd1125
+	jmp	.Lqdm1083
+.Ltd1125:
+	jmp	.Lqdm1088
+.Ltd1124:
+	test	$1, %r9d
+	jnz	.Ltd1126
+	jmp	.Lqdm1093
+.Ltd1126:
+	jmp	.Lqdm1098
+.Ltd1123:
+	test	$2, %r9d
+	jnz	.Ltd1127
+	test	$1, %r9d
+	jnz	.Ltd1128
+	jmp	.Lqdm1103
+.Ltd1128:
+	jmp	.Lqdm1108
+.Ltd1127:
+	test	$1, %r9d
+	jnz	.Ltd1129
+	jmp	.Lqdm1113
+.Ltd1129:
+	jmp	.Lqdm1118
+.Lqdm1083:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	add	0(%rsi), %rax
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%r11, %rax
+	add	%r8, %rax
+	setnc	32(%rsp)
+	sub	%r8, %r11
+	setnc	40(%rsp)
+	mov	%rax, %r14
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1085
+	.p2align	4
+.Lqdl1084:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	%rbp, 16(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	mov	16(%rdi), %rbp
+	mov	%rbp, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r11, %rax
+	mov	%r12, %rbx
+	mov	%r13, %rbp
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	adc	%r9, %rbx
+	adc	%r10, %rbp
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	sbb	%r9, %r12
+	sbb	%r10, %r13
+	setnc	40(%rsp)
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%rbx, %r8
+	shl	$62, %r8
+	shr	$2, %rax
+	or	%r8, %rax
+	mov	%rax, 0(%rsi)
+	mov	%rbp, %r8
+	shl	$62, %r8
+	shr	$2, %rbx
+	or	%r8, %rbx
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, %r14
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r12, %r8
+	shl	$62, %r8
+	shr	$2, %r11
+	or	%r8, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r13, %r8
+	shl	$62, %r8
+	shr	$2, %r12
+	or	%r8, %r12
+	mov	%r12, 8(%rcx)
+	mov	%r13, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1084
+.Lqdr1085:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1086
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%r11, %rax
+	mov	%r12, %rbx
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	adc	%r9, %rbx
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	sbb	%r9, %r12
+	setnc	40(%rsp)
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%rbx, %r8
+	shl	$62, %r8
+	shr	$2, %rax
+	or	%r8, %rax
+	mov	%rax, 0(%rsi)
+	mov	%rbx, %r14
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r12, %r8
+	shl	$62, %r8
+	shr	$2, %r11
+	or	%r8, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r12, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1086:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1087
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%r11, %rax
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	setnc	40(%rsp)
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%rax, %r14
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1087:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1082
+.Lqdm1088:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	add	0(%rsi), %rax
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%rax, %r11
+	add	%r8, %r11
+	setnc	32(%rsp)
+	sub	%r8, %rax
+	setnc	40(%rsp)
+	mov	%r11, %r14
+	mov	%rax, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1090
+	.p2align	4
+.Lqdl1089:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	%rbp, 16(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	mov	16(%rdi), %rbp
+	mov	%rbp, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r13, 16(%rdi)
+	mov	%rax, %r11
+	mov	%rbx, %r12
+	mov	%rbp, %r13
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	adc	%r9, %r12
+	adc	%r10, %r13
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	sbb	%r9, %rbx
+	sbb	%r10, %rbp
+	setnc	40(%rsp)
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r12, %r8
+	shl	$62, %r8
+	shr	$2, %r11
+	or	%r8, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r13, %r8
+	shl	$62, %r8
+	shr	$2, %r12
+	or	%r8, %r12
+	mov	%r12, 8(%rsi)
+	mov	%r13, %r14
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%rbx, %r8
+	shl	$62, %r8
+	shr	$2, %rax
+	or	%r8, %rax
+	mov	%rax, 0(%rcx)
+	mov	%rbp, %r8
+	shl	$62, %r8
+	shr	$2, %rbx
+	or	%r8, %rbx
+	mov	%rbx, 8(%rcx)
+	mov	%rbp, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1089
+.Lqdr1090:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1091
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%rax, %r11
+	mov	%rbx, %r12
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	adc	%r9, %r12
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	sbb	%r9, %rbx
+	setnc	40(%rsp)
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r12, %r8
+	shl	$62, %r8
+	shr	$2, %r11
+	or	%r8, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r12, %r14
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%rbx, %r8
+	shl	$62, %r8
+	shr	$2, %rax
+	or	%r8, %rax
+	mov	%rax, 0(%rcx)
+	mov	%rbx, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1091:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1092
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%rax, %r11
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	setnc	40(%rsp)
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r11, %r14
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%rax, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1092:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1082
+.Lqdm1093:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	add	0(%rsi), %r8
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r11, %r8
+	add	%rax, %r8
+	setnc	32(%rsp)
+	sub	%rax, %r11
+	setnc	40(%rsp)
+	mov	%r8, %r14
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1095
+	.p2align	4
+.Lqdl1094:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	%r10, 16(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	mov	16(%rdi), %r10
+	mov	%r10, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	adc	16(%rsi), %r10
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r9, 8(%rdi)
+	mov	%r10, 16(%rdi)
+	mov	%r11, %r8
+	mov	%r12, %r9
+	mov	%r13, %r10
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	adc	%rbx, %r9
+	adc	%rbp, %r10
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	sbb	%rbx, %r12
+	sbb	%rbp, %r13
+	setnc	40(%rsp)
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r8
+	or	%rax, %r8
+	mov	%r8, 0(%rsi)
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %r9
+	or	%rax, %r9
+	mov	%r9, 8(%rsi)
+	mov	%r10, %r14
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r12, 8(%rcx)
+	mov	%r13, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1094
+.Lqdr1095:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1096
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r9, 8(%rdi)
+	mov	%r11, %r8
+	mov	%r12, %r9
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	adc	%rbx, %r9
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	sbb	%rbx, %r12
+	setnc	40(%rsp)
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r8
+	or	%rax, %r8
+	mov	%r8, 0(%rsi)
+	mov	%r9, %r14
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r12, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1096:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1097
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r11, %r8
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	setnc	40(%rsp)
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r8, %r14
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1097:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1082
+.Lqdm1098:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	add	0(%rsi), %r8
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r8, %r11
+	add	%rax, %r11
+	setnc	32(%rsp)
+	sub	%rax, %r8
+	setnc	40(%rsp)
+	mov	%r11, %r14
+	mov	%r8, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1100
+	.p2align	4
+.Lqdl1099:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	%r10, 16(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	mov	16(%rdi), %r10
+	mov	%r10, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	adc	16(%rsi), %r10
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r13, 16(%rdi)
+	mov	%r8, %r11
+	mov	%r9, %r12
+	mov	%r10, %r13
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	adc	%rbx, %r12
+	adc	%rbp, %r13
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	sbb	%rbx, %r9
+	sbb	%rbp, %r10
+	setnc	40(%rsp)
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r12, 8(%rsi)
+	mov	%r13, %r14
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r8
+	or	%rax, %r8
+	mov	%r8, 0(%rcx)
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %r9
+	or	%rax, %r9
+	mov	%r9, 8(%rcx)
+	mov	%r10, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1099
+.Lqdr1100:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1101
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r8, %r11
+	mov	%r9, %r12
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	adc	%rbx, %r12
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	sbb	%rbx, %r9
+	setnc	40(%rsp)
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r12, %r14
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r8
+	or	%rax, %r8
+	mov	%r8, 0(%rcx)
+	mov	%r9, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1101:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1102
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r8, %r11
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	setnc	40(%rsp)
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r11, %r14
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r8, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1102:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1082
+.Lqdm1103:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	add	0(%rsi), %rax
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%r11, %rax
+	add	%r8, %rax
+	setnc	32(%rsp)
+	sub	%r8, %r11
+	setnc	40(%rsp)
+	mov	%r11, %r14
+	mov	%rax, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1105
+	.p2align	4
+.Lqdl1104:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	%rbp, 16(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	mov	16(%rdi), %rbp
+	mov	%rbp, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r11, %rax
+	mov	%r12, %rbx
+	mov	%r13, %rbp
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	adc	%r9, %rbx
+	adc	%r10, %rbp
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	sbb	%r9, %r12
+	sbb	%r10, %r13
+	setnc	40(%rsp)
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r12, %r8
+	shl	$62, %r8
+	shr	$2, %r11
+	or	%r8, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r13, %r8
+	shl	$62, %r8
+	shr	$2, %r12
+	or	%r8, %r12
+	mov	%r12, 8(%rsi)
+	mov	%r13, %r14
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%rbx, %r8
+	shl	$62, %r8
+	shr	$2, %rax
+	or	%r8, %rax
+	mov	%rax, 0(%rcx)
+	mov	%rbp, %r8
+	shl	$62, %r8
+	shr	$2, %rbx
+	or	%r8, %rbx
+	mov	%rbx, 8(%rcx)
+	mov	%rbp, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1104
+.Lqdr1105:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1106
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%r11, %rax
+	mov	%r12, %rbx
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	adc	%r9, %rbx
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	sbb	%r9, %r12
+	setnc	40(%rsp)
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r12, %r8
+	shl	$62, %r8
+	shr	$2, %r11
+	or	%r8, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r12, %r14
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%rbx, %r8
+	shl	$62, %r8
+	shr	$2, %rax
+	or	%r8, %rax
+	mov	%rax, 0(%rcx)
+	mov	%rbx, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1106:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1107
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%r11, %rax
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	setnc	40(%rsp)
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r11, %r14
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%rax, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1107:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1082
+.Lqdm1108:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	add	0(%rsi), %rax
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%rax, %r11
+	add	%r8, %r11
+	setnc	32(%rsp)
+	sub	%r8, %rax
+	setnc	40(%rsp)
+	mov	%rax, %r14
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1110
+	.p2align	4
+.Lqdl1109:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	%rbp, 16(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	mov	16(%rdi), %rbp
+	mov	%rbp, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r13, 16(%rdi)
+	mov	%rax, %r11
+	mov	%rbx, %r12
+	mov	%rbp, %r13
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	adc	%r9, %r12
+	adc	%r10, %r13
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	sbb	%r9, %rbx
+	sbb	%r10, %rbp
+	setnc	40(%rsp)
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%rbx, %r8
+	shl	$62, %r8
+	shr	$2, %rax
+	or	%r8, %rax
+	mov	%rax, 0(%rsi)
+	mov	%rbp, %r8
+	shl	$62, %r8
+	shr	$2, %rbx
+	or	%r8, %rbx
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, %r14
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r12, %r8
+	shl	$62, %r8
+	shr	$2, %r11
+	or	%r8, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r13, %r8
+	shl	$62, %r8
+	shr	$2, %r12
+	or	%r8, %r12
+	mov	%r12, 8(%rcx)
+	mov	%r13, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1109
+.Lqdr1110:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1111
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%rax, %r11
+	mov	%rbx, %r12
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	adc	%r9, %r12
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	sbb	%r9, %rbx
+	setnc	40(%rsp)
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%rbx, %r8
+	shl	$62, %r8
+	shr	$2, %rax
+	or	%r8, %rax
+	mov	%rax, 0(%rsi)
+	mov	%rbx, %r14
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r12, %r8
+	shl	$62, %r8
+	shr	$2, %r11
+	or	%r8, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r12, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1111:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1112
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%rax, %r11
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	setnc	40(%rsp)
+	mov	%rax, %r8
+	shl	$62, %r8
+	shr	$2, %r14
+	or	%r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%rax, %r14
+	mov	%r11, %r8
+	shl	$62, %r8
+	shr	$2, %r15
+	or	%r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1112:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1082
+.Lqdm1113:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	add	0(%rsi), %r8
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r11, %r8
+	add	%rax, %r8
+	setnc	32(%rsp)
+	sub	%rax, %r11
+	setnc	40(%rsp)
+	mov	%r11, %r14
+	mov	%r8, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1115
+	.p2align	4
+.Lqdl1114:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	%r10, 16(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	mov	16(%rdi), %r10
+	mov	%r10, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	adc	16(%rsi), %r10
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r9, 8(%rdi)
+	mov	%r10, 16(%rdi)
+	mov	%r11, %r8
+	mov	%r12, %r9
+	mov	%r13, %r10
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	adc	%rbx, %r9
+	adc	%rbp, %r10
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	sbb	%rbx, %r12
+	sbb	%rbp, %r13
+	setnc	40(%rsp)
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r12, 8(%rsi)
+	mov	%r13, %r14
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r8
+	or	%rax, %r8
+	mov	%r8, 0(%rcx)
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %r9
+	or	%rax, %r9
+	mov	%r9, 8(%rcx)
+	mov	%r10, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1114
+.Lqdr1115:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1116
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r9, 8(%rdi)
+	mov	%r11, %r8
+	mov	%r12, %r9
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	adc	%rbx, %r9
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	sbb	%rbx, %r12
+	setnc	40(%rsp)
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r12, %r14
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r8
+	or	%rax, %r8
+	mov	%r8, 0(%rcx)
+	mov	%r9, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1116:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1117
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r11, %r8
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	setnc	40(%rsp)
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r11, %r14
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r8, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1117:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1082
+.Lqdm1118:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	add	0(%rsi), %r8
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r8, %r11
+	add	%rax, %r11
+	setnc	32(%rsp)
+	sub	%rax, %r8
+	setnc	40(%rsp)
+	mov	%r8, %r14
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1120
+	.p2align	4
+.Lqdl1119:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	%r10, 16(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	mov	16(%rdi), %r10
+	mov	%r10, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	adc	16(%rsi), %r10
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r13, 16(%rdi)
+	mov	%r8, %r11
+	mov	%r9, %r12
+	mov	%r10, %r13
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	adc	%rbx, %r12
+	adc	%rbp, %r13
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	sbb	%rbx, %r9
+	sbb	%rbp, %r10
+	setnc	40(%rsp)
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r8
+	or	%rax, %r8
+	mov	%r8, 0(%rsi)
+	mov	%r10, %rax
+	shl	$62, %rax
+	shr	$2, %r9
+	or	%rax, %r9
+	mov	%r9, 8(%rsi)
+	mov	%r10, %r14
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r13, %rax
+	shl	$62, %rax
+	shr	$2, %r12
+	or	%rax, %r12
+	mov	%r12, 8(%rcx)
+	mov	%r13, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1119
+.Lqdr1120:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1121
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r8, %r11
+	mov	%r9, %r12
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	adc	%rbx, %r12
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	sbb	%rbx, %r9
+	setnc	40(%rsp)
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r9, %rax
+	shl	$62, %rax
+	shr	$2, %r8
+	or	%rax, %r8
+	mov	%r8, 0(%rsi)
+	mov	%r9, %r14
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r12, %rax
+	shl	$62, %rax
+	shr	$2, %r11
+	or	%rax, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r12, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1121:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1122
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r8, %r11
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	setnc	40(%rsp)
+	mov	%r8, %rax
+	shl	$62, %rax
+	shr	$2, %r14
+	or	%rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r8, %r14
+	mov	%r11, %rax
+	shl	$62, %rax
+	shr	$2, %r15
+	or	%rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1122:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1082
+.Lqde1082:
+	add	$56, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5quad_n, .-gtc_tc5quad_n
+#else
+/* gtc_tc5quad_n: see the header.  */
+	.globl	gtc_tc5quad_n
+	.type	gtc_tc5quad_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5quad_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$56, %rsp
+	lea	-1(%r8), %rax
+	mov	%rax, 48(%rsp)	/* n - 1 */
+	and	$7, %r9d
+	test	$4, %r9d
+	jnz	.Ltd1172
+	test	$2, %r9d
+	jnz	.Ltd1173
+	test	$1, %r9d
+	jnz	.Ltd1174
+	jmp	.Lqdm1132
+.Ltd1174:
+	jmp	.Lqdm1137
+.Ltd1173:
+	test	$1, %r9d
+	jnz	.Ltd1175
+	jmp	.Lqdm1142
+.Ltd1175:
+	jmp	.Lqdm1147
+.Ltd1172:
+	test	$2, %r9d
+	jnz	.Ltd1176
+	test	$1, %r9d
+	jnz	.Ltd1177
+	jmp	.Lqdm1152
+.Ltd1177:
+	jmp	.Lqdm1157
+.Ltd1176:
+	test	$1, %r9d
+	jnz	.Ltd1178
+	jmp	.Lqdm1162
+.Ltd1178:
+	jmp	.Lqdm1167
+.Lqdm1132:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	add	0(%rsi), %rax
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%r11, %rax
+	add	%r8, %rax
+	setnc	32(%rsp)
+	sub	%r8, %r11
+	setnc	40(%rsp)
+	mov	%rax, %r14
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1134
+	.p2align	4
+.Lqdl1133:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	%rbp, 16(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	mov	16(%rdi), %rbp
+	mov	%rbp, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r11, %rax
+	mov	%r12, %rbx
+	mov	%r13, %rbp
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	adc	%r9, %rbx
+	adc	%r10, %rbp
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	sbb	%r9, %r12
+	sbb	%r10, %r13
+	setnc	40(%rsp)
+	shrd	$2, %rax, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rsi)
+	shrd	$2, %rbp, %rbx
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rcx)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rcx)
+	mov	%r13, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1133
+.Lqdr1134:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1135
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%r11, %rax
+	mov	%r12, %rbx
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	adc	%r9, %rbx
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	sbb	%r9, %r12
+	setnc	40(%rsp)
+	shrd	$2, %rax, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rsi)
+	mov	%rbx, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r12, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1135:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1136
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%r11, %rax
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	setnc	40(%rsp)
+	shrd	$2, %rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%rax, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1136:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1131
+.Lqdm1137:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	add	0(%rsi), %rax
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%rax, %r11
+	add	%r8, %r11
+	setnc	32(%rsp)
+	sub	%r8, %rax
+	setnc	40(%rsp)
+	mov	%r11, %r14
+	mov	%rax, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1139
+	.p2align	4
+.Lqdl1138:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	%rbp, 16(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	mov	16(%rdi), %rbp
+	mov	%rbp, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r13, 16(%rdi)
+	mov	%rax, %r11
+	mov	%rbx, %r12
+	mov	%rbp, %r13
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	adc	%r9, %r12
+	adc	%r10, %r13
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	sbb	%r9, %rbx
+	sbb	%r10, %rbp
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rsi)
+	mov	%r13, %r14
+	shrd	$2, %rax, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rcx)
+	shrd	$2, %rbp, %rbx
+	mov	%rbx, 8(%rcx)
+	mov	%rbp, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1138
+.Lqdr1139:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1140
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%rax, %r11
+	mov	%rbx, %r12
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	adc	%r9, %r12
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	sbb	%r9, %rbx
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r12, %r14
+	shrd	$2, %rax, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rcx)
+	mov	%rbx, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1140:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1141
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%rax, %r11
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r11, %r14
+	shrd	$2, %rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%rax, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1141:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1131
+.Lqdm1142:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	add	0(%rsi), %r8
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r11, %r8
+	add	%rax, %r8
+	setnc	32(%rsp)
+	sub	%rax, %r11
+	setnc	40(%rsp)
+	mov	%r8, %r14
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1144
+	.p2align	4
+.Lqdl1143:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	%r10, 16(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	mov	16(%rdi), %r10
+	mov	%r10, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	adc	16(%rsi), %r10
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r9, 8(%rdi)
+	mov	%r10, 16(%rdi)
+	mov	%r11, %r8
+	mov	%r12, %r9
+	mov	%r13, %r10
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	adc	%rbx, %r9
+	adc	%rbp, %r10
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	sbb	%rbx, %r12
+	sbb	%rbp, %r13
+	setnc	40(%rsp)
+	shrd	$2, %r8, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r9, %r8
+	mov	%r8, 0(%rsi)
+	shrd	$2, %r10, %r9
+	mov	%r9, 8(%rsi)
+	mov	%r10, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rcx)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rcx)
+	mov	%r13, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1143
+.Lqdr1144:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1145
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r9, 8(%rdi)
+	mov	%r11, %r8
+	mov	%r12, %r9
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	adc	%rbx, %r9
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	sbb	%rbx, %r12
+	setnc	40(%rsp)
+	shrd	$2, %r8, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r9, %r8
+	mov	%r8, 0(%rsi)
+	mov	%r9, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r12, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1145:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1146
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r11, %r8
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	setnc	40(%rsp)
+	shrd	$2, %r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r8, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1146:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1131
+.Lqdm1147:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	add	0(%rsi), %r8
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r8, %r11
+	add	%rax, %r11
+	setnc	32(%rsp)
+	sub	%rax, %r8
+	setnc	40(%rsp)
+	mov	%r11, %r14
+	mov	%r8, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1149
+	.p2align	4
+.Lqdl1148:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	%r10, 16(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	mov	16(%rdi), %r10
+	mov	%r10, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	adc	16(%rsi), %r10
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r13, 16(%rdi)
+	mov	%r8, %r11
+	mov	%r9, %r12
+	mov	%r10, %r13
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	adc	%rbx, %r12
+	adc	%rbp, %r13
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	sbb	%rbx, %r9
+	sbb	%rbp, %r10
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rsi)
+	mov	%r13, %r14
+	shrd	$2, %r8, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r9, %r8
+	mov	%r8, 0(%rcx)
+	shrd	$2, %r10, %r9
+	mov	%r9, 8(%rcx)
+	mov	%r10, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1148
+.Lqdr1149:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1150
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r8, %r11
+	mov	%r9, %r12
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	adc	%rbx, %r12
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	sbb	%rbx, %r9
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r12, %r14
+	shrd	$2, %r8, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r9, %r8
+	mov	%r8, 0(%rcx)
+	mov	%r9, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1150:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1151
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r8, %r11
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r11, %r14
+	shrd	$2, %r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r8, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1151:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1131
+.Lqdm1152:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	add	0(%rsi), %rax
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%r11, %rax
+	add	%r8, %rax
+	setnc	32(%rsp)
+	sub	%r8, %r11
+	setnc	40(%rsp)
+	mov	%r11, %r14
+	mov	%rax, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1154
+	.p2align	4
+.Lqdl1153:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	%rbp, 16(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	mov	16(%rdi), %rbp
+	mov	%rbp, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r11, %rax
+	mov	%r12, %rbx
+	mov	%r13, %rbp
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	adc	%r9, %rbx
+	adc	%r10, %rbp
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	sbb	%r9, %r12
+	sbb	%r10, %r13
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rsi)
+	mov	%r13, %r14
+	shrd	$2, %rax, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rcx)
+	shrd	$2, %rbp, %rbx
+	mov	%rbx, 8(%rcx)
+	mov	%rbp, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1153
+.Lqdr1154:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1155
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%r11, %rax
+	mov	%r12, %rbx
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	adc	%r9, %rbx
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	sbb	%r9, %r12
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r12, %r14
+	shrd	$2, %rax, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rcx)
+	mov	%rbx, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1155:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1156
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%rax, 0(%rdi)
+	mov	%r11, %rax
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %rax
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %r11
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r11, %r14
+	shrd	$2, %rax, %r15
+	mov	%r15, -8(%rcx)
+	mov	%rax, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1156:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1131
+.Lqdm1157:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	add	0(%rsi), %rax
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%rax, %r11
+	add	%r8, %r11
+	setnc	32(%rsp)
+	sub	%r8, %rax
+	setnc	40(%rsp)
+	mov	%rax, %r14
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1159
+	.p2align	4
+.Lqdl1158:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	%rbp, 16(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	mov	16(%rdi), %rbp
+	mov	%rbp, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r13, 16(%rdi)
+	mov	%rax, %r11
+	mov	%rbx, %r12
+	mov	%rbp, %r13
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	adc	%r9, %r12
+	adc	%r10, %r13
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	sbb	%r9, %rbx
+	sbb	%r10, %rbp
+	setnc	40(%rsp)
+	shrd	$2, %rax, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rsi)
+	shrd	$2, %rbp, %rbx
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rcx)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rcx)
+	mov	%r13, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1158
+.Lqdr1159:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1160
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	%rbx, 8(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	mov	8(%rdi), %rbx
+	mov	%rbx, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%rax, %r11
+	mov	%rbx, %r12
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	adc	%r9, %r12
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	sbb	%r9, %rbx
+	setnc	40(%rsp)
+	shrd	$2, %rax, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %rbx, %rax
+	mov	%rax, 0(%rsi)
+	mov	%rbx, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r12, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1160:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1161
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%rax, 0(%rdx)
+	mov	0(%rdi), %rax
+	mov	%rax, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%rax, %r11
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%r8, %r11
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%r8, %rax
+	setnc	40(%rsp)
+	shrd	$2, %rax, %r14
+	mov	%r14, -8(%rsi)
+	mov	%rax, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1161:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1131
+.Lqdm1162:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	add	0(%rsi), %r8
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r11, %r8
+	add	%rax, %r8
+	setnc	32(%rsp)
+	sub	%rax, %r11
+	setnc	40(%rsp)
+	mov	%r11, %r14
+	mov	%r8, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1164
+	.p2align	4
+.Lqdl1163:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	%r10, 16(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	mov	16(%rdi), %r10
+	mov	%r10, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	adc	16(%rsi), %r10
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r9, 8(%rdi)
+	mov	%r10, 16(%rdi)
+	mov	%r11, %r8
+	mov	%r12, %r9
+	mov	%r13, %r10
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	adc	%rbx, %r9
+	adc	%rbp, %r10
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	sbb	%rbx, %r12
+	sbb	%rbp, %r13
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rsi)
+	mov	%r13, %r14
+	shrd	$2, %r8, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r9, %r8
+	mov	%r8, 0(%rcx)
+	shrd	$2, %r10, %r9
+	mov	%r9, 8(%rcx)
+	mov	%r10, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1163
+.Lqdr1164:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1165
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r9, 8(%rdi)
+	mov	%r11, %r8
+	mov	%r12, %r9
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	adc	%rbx, %r9
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	sbb	%rbx, %r12
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rsi)
+	mov	%r12, %r14
+	shrd	$2, %r8, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r9, %r8
+	mov	%r8, 0(%rcx)
+	mov	%r9, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1165:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1166
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r8, 0(%rdi)
+	mov	%r11, %r8
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r8
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r11
+	setnc	40(%rsp)
+	shrd	$2, %r11, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r11, %r14
+	shrd	$2, %r8, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r8, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1166:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1131
+.Lqdm1167:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	add	0(%rcx), %rax
+	setnc	0(%rsp)
+	sub	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	add	0(%rsi), %r8
+	setnc	16(%rsp)
+	sub	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r8, %r11
+	add	%rax, %r11
+	setnc	32(%rsp)
+	sub	%rax, %r8
+	setnc	40(%rsp)
+	mov	%r8, %r14
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jb	.Lqdr1169
+	.p2align	4
+.Lqdl1168:
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	mov	16(%rdx), %rbp
+	mov	%rbp, %r10
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	adc	16(%rcx), %rbp
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	sbb	16(%rcx), %r10
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	%r10, 16(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	mov	16(%rdi), %r10
+	mov	%r10, %r13
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	adc	16(%rsi), %r10
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r13, 16(%rdi)
+	mov	%r8, %r11
+	mov	%r9, %r12
+	mov	%r10, %r13
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	adc	%rbx, %r12
+	adc	%rbp, %r13
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	sbb	%rbx, %r9
+	sbb	%rbp, %r10
+	setnc	40(%rsp)
+	shrd	$2, %r8, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r9, %r8
+	mov	%r8, 0(%rsi)
+	shrd	$2, %r10, %r9
+	mov	%r9, 8(%rsi)
+	mov	%r10, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rcx)
+	shrd	$2, %r13, %r12
+	mov	%r12, 8(%rcx)
+	mov	%r13, %r15
+	lea	24(%rdi), %rdi
+	lea	24(%rsi), %rsi
+	lea	24(%rdx), %rdx
+	lea	24(%rcx), %rcx
+	subq	$3, 48(%rsp)
+	jae	.Lqdl1168
+.Lqdr1169:
+	addq	$3, 48(%rsp)	/* the rest, 0 to 2 */
+	testb	$2, 48(%rsp)
+	jz	.Lqdb1170
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	mov	8(%rdx), %rbx
+	mov	%rbx, %r9
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	adc	8(%rcx), %rbx
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	sbb	8(%rcx), %r9
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	%r9, 8(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	mov	8(%rdi), %r9
+	mov	%r9, %r12
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	adc	8(%rsi), %r9
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	sbb	8(%rsi), %r12
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r12, 8(%rdi)
+	mov	%r8, %r11
+	mov	%r9, %r12
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	adc	%rbx, %r12
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	sbb	%rbx, %r9
+	setnc	40(%rsp)
+	shrd	$2, %r8, %r14
+	mov	%r14, -8(%rsi)
+	shrd	$2, %r9, %r8
+	mov	%r8, 0(%rsi)
+	mov	%r9, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	shrd	$2, %r12, %r11
+	mov	%r11, 0(%rcx)
+	mov	%r12, %r15
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+.Lqdb1170:
+	testb	$1, 48(%rsp)
+	jz	.Lqdb1171
+	mov	0(%rdx), %rax
+	mov	%rax, %r8
+	cmpb	$1, 0(%rsp)	/* CF back */
+	adc	0(%rcx), %rax
+	setnc	0(%rsp)
+	cmpb	$1, 8(%rsp)	/* CF back */
+	sbb	0(%rcx), %r8
+	setnc	8(%rsp)
+	mov	%r8, 0(%rdx)
+	mov	0(%rdi), %r8
+	mov	%r8, %r11
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %r8
+	setnc	16(%rsp)
+	cmpb	$1, 24(%rsp)	/* CF back */
+	sbb	0(%rsi), %r11
+	setnc	24(%rsp)
+	mov	%r11, 0(%rdi)
+	mov	%r8, %r11
+	cmpb	$1, 32(%rsp)	/* CF back */
+	adc	%rax, %r11
+	setnc	32(%rsp)
+	cmpb	$1, 40(%rsp)	/* CF back */
+	sbb	%rax, %r8
+	setnc	40(%rsp)
+	shrd	$2, %r8, %r14
+	mov	%r14, -8(%rsi)
+	mov	%r8, %r14
+	shrd	$2, %r11, %r15
+	mov	%r15, -8(%rcx)
+	mov	%r11, %r15
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+.Lqdb1171:
+	sar	$2, %r14
+	mov	%r14, -8(%rsi)
+	sar	$2, %r15
+	mov	%r15, -8(%rcx)
+	jmp	.Lqde1131
+.Lqde1131:
+	add	$56, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5quad_n, .-gtc_tc5quad_n
+#endif
+/* gtc_tc5uys_n: see the header.  */
+	.globl	gtc_tc5uys_n
+	.type	gtc_tc5uys_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5uys_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$120, %rsp
+	mov	176(%rsp), %rax
+	mov	%rax, %r10
+	shr	$3, %rax		/* n8 */
+	sub	%rax, %r9
+	mov	%r9, 48(%rsp)	/* n - n8 */
+	mov	-8(%r8,%rax,8), %rbx
+	sar	$63, %rbx
+	mov	%rbx, 56(%rsp)	/* q8's sign limb */
+	mov	%rax, 80(%rsp)
+	movq	$1, 72(%rsp)	/* CF = 0 */
+	mov	184(%rsp), %r9
+	movq	$1, 0(%rsp)	/* CF = 0 */
+	movq	$0, 24(%rsp)
+	movq	$1, 8(%rsp)	/* CF = 0 */
+	movq	$0, 32(%rsp)
+	movq	$1, 16(%rsp)	/* CF = 0 */
+	movq	$0, 40(%rsp)
+	mov	192(%rsp), %r15
+	mov	%r15, 104(%rsp)	/* v's pointer */
+	movq	$1, 88(%rsp)	/* CF = 0 */
+	movq	$1, 96(%rsp)	/* CF = 0 */
+	mov	%r10d, %eax
+	and	$7, %eax
+	test	$4, %eax
+	jnz	.Ltd1269
+	test	$2, %eax
+	jnz	.Ltd1270
+	test	$1, %eax
+	jnz	.Ltd1271
+	jmp	.Lu5p1180
+.Ltd1271:
+	jmp	.Lu5p1181
+.Ltd1270:
+	test	$1, %eax
+	jnz	.Ltd1272
+	jmp	.Lu5p1182
+.Ltd1272:
+	jmp	.Lu5p1183
+.Ltd1269:
+	test	$2, %eax
+	jnz	.Ltd1273
+	test	$1, %eax
+	jnz	.Ltd1274
+	jmp	.Lu5p1184
+.Ltd1274:
+	jmp	.Lu5p1185
+.Ltd1273:
+	test	$1, %eax
+	jnz	.Ltd1275
+	jmp	.Lu5p1186
+.Ltd1275:
+	jmp	.Lu5p1187
+.Lu5p1180:
+	movq	$0, 72(%rsp)
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1189
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1189:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1190
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1190:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1191
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1191:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1193
+	.p2align	4
+.Lu5l1192:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	not	%r11
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	not	%r12
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	not	%r13
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	not	%r14
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	adc	32(%r15), %r11
+	adc	40(%r15), %r12
+	adc	48(%r15), %r13
+	adc	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1192
+.Lu5d1193:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1179
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1194
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1194:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1195
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1195:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1196
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1196:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1198
+	.p2align	4
+.Lu5l1197:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	not	%r11
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	not	%r12
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	not	%r13
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	not	%r14
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	adc	32(%r15), %r11
+	adc	40(%r15), %r12
+	adc	48(%r15), %r13
+	adc	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1197
+.Lu5d1198:
+	jmp	.Lu5e1179
+.Lu5p1181:
+	movq	$0, 72(%rsp)
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1199
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1199:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1200
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1200:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1201
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1201:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1203
+	.p2align	4
+.Lu5l1202:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	not	%r11
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	not	%r12
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	not	%r13
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	not	%r14
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	adc	32(%r15), %r11
+	adc	40(%r15), %r12
+	adc	48(%r15), %r13
+	adc	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1202
+.Lu5d1203:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1179
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1204
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1204:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1205
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1205:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1206
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1206:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1208
+	.p2align	4
+.Lu5l1207:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	not	%r11
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	not	%r12
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	not	%r13
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	not	%r14
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	adc	32(%r15), %r11
+	adc	40(%r15), %r12
+	adc	48(%r15), %r13
+	adc	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1207
+.Lu5d1208:
+	jmp	.Lu5e1179
+.Lu5p1182:
+	movq	$1, 72(%rsp)
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1209
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1209:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1210
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1210:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1211
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1211:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1213
+	.p2align	4
+.Lu5l1212:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	adc	32(%r15), %r11
+	adc	40(%r15), %r12
+	adc	48(%r15), %r13
+	adc	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1212
+.Lu5d1213:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1179
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1214
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1214:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1215
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1215:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1216
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1216:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1218
+	.p2align	4
+.Lu5l1217:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	adc	32(%r15), %r11
+	adc	40(%r15), %r12
+	adc	48(%r15), %r13
+	adc	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1217
+.Lu5d1218:
+	jmp	.Lu5e1179
+.Lu5p1183:
+	movq	$1, 72(%rsp)
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1219
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1219:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1220
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1220:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1221
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1221:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1223
+	.p2align	4
+.Lu5l1222:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	adc	32(%r15), %r11
+	adc	40(%r15), %r12
+	adc	48(%r15), %r13
+	adc	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1222
+.Lu5d1223:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1179
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1224
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1224:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1225
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1225:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1226
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1226:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1228
+	.p2align	4
+.Lu5l1227:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	adc	0(%r15), %rax
+	adc	8(%r15), %rbx
+	adc	16(%r15), %rbp
+	adc	24(%r15), %r10
+	adc	32(%r15), %r11
+	adc	40(%r15), %r12
+	adc	48(%r15), %r13
+	adc	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1227
+.Lu5d1228:
+	jmp	.Lu5e1179
+.Lu5p1184:
+	movq	$0, 72(%rsp)
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1229
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1229:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1230
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1230:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1231
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1231:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1233
+	.p2align	4
+.Lu5l1232:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	not	%r11
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	not	%r12
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	not	%r13
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	not	%r14
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	sbb	32(%r15), %r11
+	sbb	40(%r15), %r12
+	sbb	48(%r15), %r13
+	sbb	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1232
+.Lu5d1233:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1179
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1234
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1234:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1235
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1235:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1236
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1236:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1238
+	.p2align	4
+.Lu5l1237:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	not	%r11
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	not	%r12
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	not	%r13
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	not	%r14
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	sbb	32(%r15), %r11
+	sbb	40(%r15), %r12
+	sbb	48(%r15), %r13
+	sbb	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1237
+.Lu5d1238:
+	jmp	.Lu5e1179
+.Lu5p1185:
+	movq	$0, 72(%rsp)
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1239
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1239:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1240
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1240:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1241
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1241:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1243
+	.p2align	4
+.Lu5l1242:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	not	%r11
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	not	%r12
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	not	%r13
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	not	%r14
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	sbb	32(%r15), %r11
+	sbb	40(%r15), %r12
+	sbb	48(%r15), %r13
+	sbb	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1242
+.Lu5d1243:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1179
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1244
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1244:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1245
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1245:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1246
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1246:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1248
+	.p2align	4
+.Lu5l1247:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	not	%rax
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	not	%rbx
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	not	%rbp
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	not	%r10
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	not	%r11
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	not	%r12
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	not	%r13
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	not	%r14
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	sbb	32(%r15), %r11
+	sbb	40(%r15), %r12
+	sbb	48(%r15), %r13
+	sbb	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1247
+.Lu5d1248:
+	jmp	.Lu5e1179
+.Lu5p1186:
+	movq	$1, 72(%rsp)
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1249
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1249:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1250
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1250:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1251
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1251:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1253
+	.p2align	4
+.Lu5l1252:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	sbb	32(%r15), %r11
+	sbb	40(%r15), %r12
+	sbb	48(%r15), %r13
+	sbb	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1252
+.Lu5d1253:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1179
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1254
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1254:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1255
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1255:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1256
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1256:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1258
+	.p2align	4
+.Lu5l1257:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	sbb	32(%r15), %r11
+	sbb	40(%r15), %r12
+	sbb	48(%r15), %r13
+	sbb	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1257
+.Lu5d1258:
+	jmp	.Lu5e1179
+.Lu5p1187:
+	movq	$1, 72(%rsp)
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1259
+	mov	0(%r8), %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r8), %r8
+	lea	8(%r9), %r9
+.Lu5b1259:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1260
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r8), %r8
+	lea	16(%r9), %r9
+.Lu5b1260:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1261
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r8), %r8
+	lea	32(%r9), %r9
+.Lu5b1261:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1263
+	.p2align	4
+.Lu5l1262:
+	mov	0(%r8), %rax
+	mov	8(%r8), %rbx
+	mov	16(%r8), %rbp
+	mov	24(%r8), %r10
+	mov	32(%r8), %r11
+	mov	40(%r8), %r12
+	mov	48(%r8), %r13
+	mov	56(%r8), %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	sbb	32(%r15), %r11
+	sbb	40(%r15), %r12
+	sbb	48(%r15), %r13
+	sbb	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r8), %r8
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1262
+.Lu5d1263:
+	mov	48(%rsp), %r15
+	mov	%r15, 80(%rsp)
+	test	%r15, %r15
+	jz	.Lu5e1179
+	mov	56(%rsp), %r8
+	testb	$1, 80(%rsp)
+	jz	.Lu5b1264
+	mov	%r8, %rax
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rax, 24(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rax, 32(%rsp)
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rax, 40(%rsp)
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	lea	8(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	8(%rdi), %rdi
+	lea	8(%rsi), %rsi
+	lea	8(%rdx), %rdx
+	lea	8(%rcx), %rcx
+	lea	8(%r9), %r9
+.Lu5b1264:
+	testb	$2, 80(%rsp)
+	jz	.Lu5b1265
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%rbx, 24(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%rbx, 32(%rsp)
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%rbx, 40(%rsp)
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	lea	16(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	16(%rdi), %rdi
+	lea	16(%rsi), %rsi
+	lea	16(%rdx), %rdx
+	lea	16(%rcx), %rcx
+	lea	16(%r9), %r9
+.Lu5b1265:
+	testb	$4, 80(%rsp)
+	jz	.Lu5b1266
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r10, 24(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r10, 32(%rsp)
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r10, 40(%rsp)
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	lea	32(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	32(%rdi), %rdi
+	lea	32(%rsi), %rsi
+	lea	32(%rdx), %rdx
+	lea	32(%rcx), %rcx
+	lea	32(%r9), %r9
+.Lu5b1266:
+	shrq	$3, 80(%rsp)
+	jz	.Lu5d1268
+	.p2align	4
+.Lu5l1267:
+	mov	%r8, %rax
+	mov	%r8, %rbx
+	mov	%r8, %rbp
+	mov	%r8, %r10
+	mov	%r8, %r11
+	mov	%r8, %r12
+	mov	%r8, %r13
+	mov	%r8, %r14
+	mov	24(%rsp), %r15	/* the limb below */
+	mov	%r14, 24(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 0(%rsp)	/* CF back */
+	sbb	0(%rcx), %rax
+	sbb	8(%rcx), %rbx
+	sbb	16(%rcx), %rbp
+	sbb	24(%rcx), %r10
+	sbb	32(%rcx), %r11
+	sbb	40(%rcx), %r12
+	sbb	48(%rcx), %r13
+	sbb	56(%rcx), %r14
+	setnc	0(%rsp)	/* 1 - CF */
+	mov	32(%rsp), %r15	/* the limb below */
+	mov	%r14, 32(%rsp)
+	shld	$2, %r13, %r14
+	shld	$2, %r12, %r13
+	shld	$2, %r11, %r12
+	shld	$2, %r10, %r11
+	shld	$2, %rbp, %r10
+	shld	$2, %rbx, %rbp
+	shld	$2, %rax, %rbx
+	shld	$2, %r15, %rax
+	cmpb	$1, 8(%rsp)	/* CF back */
+	adc	0(%rdx), %rax
+	adc	8(%rdx), %rbx
+	adc	16(%rdx), %rbp
+	adc	24(%rdx), %r10
+	adc	32(%rdx), %r11
+	adc	40(%rdx), %r12
+	adc	48(%rdx), %r13
+	adc	56(%rdx), %r14
+	setnc	8(%rsp)	/* 1 - CF */
+	mov	40(%rsp), %r15	/* the limb below */
+	mov	%r14, 40(%rsp)
+	shld	$1, %r13, %r14
+	shld	$1, %r12, %r13
+	shld	$1, %r11, %r12
+	shld	$1, %r10, %r11
+	shld	$1, %rbp, %r10
+	shld	$1, %rbx, %rbp
+	shld	$1, %rax, %rbx
+	shld	$1, %r15, %rax
+	cmpb	$1, 16(%rsp)	/* CF back */
+	adc	0(%rsi), %rax
+	adc	8(%rsi), %rbx
+	adc	16(%rsi), %rbp
+	adc	24(%rsi), %r10
+	adc	32(%rsi), %r11
+	adc	40(%rsi), %r12
+	adc	48(%rsi), %r13
+	adc	56(%rsi), %r14
+	setnc	16(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rdi)
+	mov	%rbx, 8(%rdi)
+	mov	%rbp, 16(%rdi)
+	mov	%r10, 24(%rdi)
+	mov	%r11, 32(%rdi)
+	mov	%r12, 40(%rdi)
+	mov	%r13, 48(%rdi)
+	mov	%r14, 56(%rdi)
+	cmpb	$1, 72(%rsp)	/* CF back */
+	adc	0(%r9), %rax
+	mov	%rax, 0(%r9)
+	adc	8(%r9), %rbx
+	mov	%rbx, 8(%r9)
+	adc	16(%r9), %rbp
+	mov	%rbp, 16(%r9)
+	adc	24(%r9), %r10
+	mov	%r10, 24(%r9)
+	adc	32(%r9), %r11
+	mov	%r11, 32(%r9)
+	adc	40(%r9), %r12
+	mov	%r12, 40(%r9)
+	adc	48(%r9), %r13
+	mov	%r13, 48(%r9)
+	adc	56(%r9), %r14
+	mov	%r14, 56(%r9)
+	setnc	72(%rsp)	/* 1 - CF */
+	mov	104(%rsp), %r15
+	cmpb	$1, 88(%rsp)	/* CF back */
+	sbb	0(%r15), %rax
+	sbb	8(%r15), %rbx
+	sbb	16(%r15), %rbp
+	sbb	24(%r15), %r10
+	sbb	32(%r15), %r11
+	sbb	40(%r15), %r12
+	sbb	48(%r15), %r13
+	sbb	56(%r15), %r14
+	setnc	88(%rsp)	/* 1 - CF */
+	cmpb	$1, 96(%rsp)	/* CF back */
+	sbb	0(%rsi), %rax
+	sbb	8(%rsi), %rbx
+	sbb	16(%rsi), %rbp
+	sbb	24(%rsi), %r10
+	sbb	32(%rsi), %r11
+	sbb	40(%rsi), %r12
+	sbb	48(%rsi), %r13
+	sbb	56(%rsi), %r14
+	setnc	96(%rsp)	/* 1 - CF */
+	mov	%rax, 0(%rsi)
+	mov	%rbx, 8(%rsi)
+	mov	%rbp, 16(%rsi)
+	mov	%r10, 24(%rsi)
+	mov	%r11, 32(%rsi)
+	mov	%r12, 40(%rsi)
+	mov	%r13, 48(%rsi)
+	mov	%r14, 56(%rsi)
+	lea	64(%r15), %r15
+	mov	%r15, 104(%rsp)
+	lea	64(%rdi), %rdi
+	lea	64(%rsi), %rsi
+	lea	64(%rdx), %rdx
+	lea	64(%rcx), %rcx
+	lea	64(%r9), %r9
+	subq	$1, 80(%rsp)
+	jnz	.Lu5l1267
+.Lu5d1268:
+	jmp	.Lu5e1179
+.Lu5e1179:
+	add	$120, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5uys_n, .-gtc_tc5uys_n
+#if !(defined (__znver1__) || defined (__znver2__) || defined (__znver3__) || defined (__znver4__) || defined (__znver5__))
+/* gtc_tc5q8_n: see the header.  */
+	.globl	gtc_tc5q8_n
+	.type	gtc_tc5q8_n, @function
+	.p2align	GTC_TC5_FA
+gtc_tc5q8_n:
+	push	%rbx
+	push	%rbp
+	push	%r12
+	push	%r13
+	push	%r14
+	push	%r15
+	sub	$88, %rsp
+	mov	%rcx, %rax
+	sub	%rdx, %rax
+	mov	%rax, 56(%rsp)	/* y - x */
+	mov	%rsi, %rax
+	sub	%rdi, %rax
+	mov	%rax, 64(%rsp)	/* a2 - a1 */
+	mov	%r8, %rsi
+	mov	%rdx, %r10
+	mov	144(%rsp), %eax
+	and	$15, %eax
+	test	$8, %eax
+	jnz	.Ltd1374
+	test	$4, %eax
+	jnz	.Ltd1375
+	test	$2, %eax
+	jnz	.Ltd1376
+	test	$1, %eax
+	jnz	.Ltd1377
+	jmp	.Lq8m1278
+.Ltd1377:
+	jmp	.Lq8m1284
+.Ltd1376:
+	test	$1, %eax
+	jnz	.Ltd1378
+	jmp	.Lq8m1290
+.Ltd1378:
+	jmp	.Lq8m1296
+.Ltd1375:
+	test	$2, %eax
+	jnz	.Ltd1379
+	test	$1, %eax
+	jnz	.Ltd1380
+	jmp	.Lq8m1302
+.Ltd1380:
+	jmp	.Lq8m1308
+.Ltd1379:
+	test	$1, %eax
+	jnz	.Ltd1381
+	jmp	.Lq8m1314
+.Ltd1381:
+	jmp	.Lq8m1320
+.Ltd1374:
+	test	$4, %eax
+	jnz	.Ltd1382
+	test	$2, %eax
+	jnz	.Ltd1383
+	test	$1, %eax
+	jnz	.Ltd1384
+	jmp	.Lq8m1326
+.Ltd1384:
+	jmp	.Lq8m1332
+.Ltd1383:
+	test	$1, %eax
+	jnz	.Ltd1385
+	jmp	.Lq8m1338
+.Ltd1385:
+	jmp	.Lq8m1344
+.Ltd1382:
+	test	$2, %eax
+	jnz	.Ltd1386
+	test	$1, %eax
+	jnz	.Ltd1387
+	jmp	.Lq8m1350
+.Ltd1387:
+	jmp	.Lq8m1356
+.Ltd1386:
+	test	$1, %eax
+	jnz	.Ltd1388
+	jmp	.Lq8m1362
+.Ltd1388:
+	jmp	.Lq8m1368
+.Lq8m1278:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	add	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$0, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	movq	$0, 80(%rsp)	/* R before: 0 */
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1279
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mov	%rbx, %r11
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%rbp, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1279:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1280
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r12, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1280:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1281
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r14, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1281:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1283
+	.p2align	4
+.Lq8l1282:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	adc	32(%r10), %r9
+	adc	40(%r10), %rcx
+	adc	48(%r10), %r8
+	adc	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	shrd	$2, %rcx, %r9
+	shrd	$2, %r8, %rcx
+	shrd	$2, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	adc	32(%rsi), %r15
+	adc	40(%rsi), %r9
+	adc	48(%rsi), %rcx
+	adc	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	mulx	%r15, %r15, %rbx
+	adcx	%r11, %r15
+	adox	%r14, %r15	/* -q */
+	mulx	%r9, %r9, %r11
+	adcx	%rbx, %r9
+	adox	%r15, %r9	/* -q */
+	mulx	%rcx, %rcx, %rbx
+	adcx	%r11, %rcx
+	adox	%r9, %rcx	/* -q */
+	mulx	%r8, %r8, %r11
+	adcx	%rbx, %r8
+	adox	%rcx, %r8	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r8, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	adcx	32(%rsi), %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	adcx	40(%rsi), %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	adcx	48(%rsi), %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	adcx	56(%rsi), %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1282
+.Lq8d1283:
+	mov	72(%rsp), %rbp
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp
+	add	80(%rsp), %rbp	/* -q */
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1284:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	sub	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$0, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	movq	$0, 80(%rsp)	/* R before: 0 */
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1285
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mov	%rbx, %r11
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%rbp, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1285:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1286
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r12, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1286:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1287
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r14, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1287:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1289
+	.p2align	4
+.Lq8l1288:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	sbb	32(%r10), %r9
+	sbb	40(%r10), %rcx
+	sbb	48(%r10), %r8
+	sbb	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	shrd	$2, %rcx, %r9
+	shrd	$2, %r8, %rcx
+	shrd	$2, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	adc	32(%rsi), %r15
+	adc	40(%rsi), %r9
+	adc	48(%rsi), %rcx
+	adc	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	mulx	%r15, %r15, %rbx
+	adcx	%r11, %r15
+	adox	%r14, %r15	/* -q */
+	mulx	%r9, %r9, %r11
+	adcx	%rbx, %r9
+	adox	%r15, %r9	/* -q */
+	mulx	%rcx, %rcx, %rbx
+	adcx	%r11, %rcx
+	adox	%r9, %rcx	/* -q */
+	mulx	%r8, %r8, %r11
+	adcx	%rbx, %r8
+	adox	%rcx, %r8	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r8, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	adcx	32(%rsi), %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	adcx	40(%rsi), %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	adcx	48(%rsi), %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	adcx	56(%rsi), %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1288
+.Lq8d1289:
+	mov	72(%rsp), %rbp
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp
+	add	80(%rsp), %rbp	/* -q */
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1290:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	add	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$-1, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	movq	$0, 80(%rsp)	/* R before: 0 */
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1291
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mov	%rbx, %r11
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%rbp, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1291:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1292
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r12, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1292:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1293
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r14, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1293:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1295
+	.p2align	4
+.Lq8l1294:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	adc	32(%r10), %r9
+	adc	40(%r10), %rcx
+	adc	48(%r10), %r8
+	adc	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	shrd	$2, %rcx, %r9
+	shrd	$2, %r8, %rcx
+	shrd	$2, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	sbb	32(%rsi), %r15
+	sbb	40(%rsi), %r9
+	sbb	48(%rsi), %rcx
+	sbb	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	mulx	%r15, %r15, %rbx
+	adcx	%r11, %r15
+	adox	%r14, %r15	/* -q */
+	mulx	%r9, %r9, %r11
+	adcx	%rbx, %r9
+	adox	%r15, %r9	/* -q */
+	mulx	%rcx, %rcx, %rbx
+	adcx	%r11, %rcx
+	adox	%r9, %rcx	/* -q */
+	mulx	%r8, %r8, %r11
+	adcx	%rbx, %r8
+	adox	%rcx, %r8	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r8, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	mov	32(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	mov	40(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	mov	48(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	mov	56(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1294
+.Lq8d1295:
+	mov	72(%rsp), %rbp
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp
+	add	80(%rsp), %rbp	/* -q */
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1296:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	sub	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$-1, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	movq	$0, 80(%rsp)	/* R before: 0 */
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1297
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mov	%rbx, %r11
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%rbp, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1297:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1298
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r12, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1298:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1299
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r14, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1299:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1301
+	.p2align	4
+.Lq8l1300:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	sbb	32(%r10), %r9
+	sbb	40(%r10), %rcx
+	sbb	48(%r10), %r8
+	sbb	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	shrd	$2, %rcx, %r9
+	shrd	$2, %r8, %rcx
+	shrd	$2, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	sbb	32(%rsi), %r15
+	sbb	40(%rsi), %r9
+	sbb	48(%rsi), %rcx
+	sbb	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	mulx	%r15, %r15, %rbx
+	adcx	%r11, %r15
+	adox	%r14, %r15	/* -q */
+	mulx	%r9, %r9, %r11
+	adcx	%rbx, %r9
+	adox	%r15, %r9	/* -q */
+	mulx	%rcx, %rcx, %rbx
+	adcx	%r11, %rcx
+	adox	%r9, %rcx	/* -q */
+	mulx	%r8, %r8, %r11
+	adcx	%rbx, %r8
+	adox	%rcx, %r8	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r8, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	mov	32(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	mov	40(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	mov	48(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	mov	56(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1300
+.Lq8d1301:
+	mov	72(%rsp), %rbp
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp
+	add	80(%rsp), %rbp	/* -q */
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1302:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	add	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$-1, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1303
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1303:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1304
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1304:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1305
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1305:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1307
+	.p2align	4
+.Lq8l1306:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	adc	32(%r10), %r9
+	adc	40(%r10), %rcx
+	adc	48(%r10), %r8
+	adc	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	shrd	$2, %rcx, %r9
+	shrd	$2, %r8, %rcx
+	shrd	$2, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	adc	32(%rsi), %r15
+	adc	40(%rsi), %r9
+	adc	48(%rsi), %rcx
+	adc	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mulx	%r15, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r15
+	sbb	%rbx, %r11
+	mulx	%r9, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r9
+	sbb	%rbx, %r11
+	mulx	%rcx, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rcx
+	sbb	%rbx, %r11
+	mulx	%r8, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r8
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	mov	32(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	mov	40(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	mov	48(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	mov	56(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1306
+.Lq8d1307:
+	mov	72(%rsp), %rbp
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1308:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	sub	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$-1, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1309
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1309:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1310
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1310:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1311
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1311:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1313
+	.p2align	4
+.Lq8l1312:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	sbb	32(%r10), %r9
+	sbb	40(%r10), %rcx
+	sbb	48(%r10), %r8
+	sbb	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	shrd	$2, %rcx, %r9
+	shrd	$2, %r8, %rcx
+	shrd	$2, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	adc	32(%rsi), %r15
+	adc	40(%rsi), %r9
+	adc	48(%rsi), %rcx
+	adc	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mulx	%r15, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r15
+	sbb	%rbx, %r11
+	mulx	%r9, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r9
+	sbb	%rbx, %r11
+	mulx	%rcx, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rcx
+	sbb	%rbx, %r11
+	mulx	%r8, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r8
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	mov	32(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	mov	40(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	mov	48(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	mov	56(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1312
+.Lq8d1313:
+	mov	72(%rsp), %rbp
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1314:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	add	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$0, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1315
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1315:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1316
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1316:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1317
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1317:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1319
+	.p2align	4
+.Lq8l1318:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	adc	32(%r10), %r9
+	adc	40(%r10), %rcx
+	adc	48(%r10), %r8
+	adc	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	shrd	$2, %rcx, %r9
+	shrd	$2, %r8, %rcx
+	shrd	$2, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	sbb	32(%rsi), %r15
+	sbb	40(%rsi), %r9
+	sbb	48(%rsi), %rcx
+	sbb	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mulx	%r15, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r15
+	sbb	%rbx, %r11
+	mulx	%r9, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r9
+	sbb	%rbx, %r11
+	mulx	%rcx, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rcx
+	sbb	%rbx, %r11
+	mulx	%r8, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r8
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	adcx	32(%rsi), %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	adcx	40(%rsi), %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	adcx	48(%rsi), %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	adcx	56(%rsi), %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1318
+.Lq8d1319:
+	mov	72(%rsp), %rbp
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1320:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	sub	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$0, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1321
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1321:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1322
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1322:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1323
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1323:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1325
+	.p2align	4
+.Lq8l1324:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	sbb	32(%r10), %r9
+	sbb	40(%r10), %rcx
+	sbb	48(%r10), %r8
+	sbb	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$2, %r12, %rbp
+	shrd	$2, %r13, %r12
+	shrd	$2, %r14, %r13
+	shrd	$2, %r15, %r14
+	shrd	$2, %r9, %r15
+	shrd	$2, %rcx, %r9
+	shrd	$2, %r8, %rcx
+	shrd	$2, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	sbb	32(%rsi), %r15
+	sbb	40(%rsi), %r9
+	sbb	48(%rsi), %rcx
+	sbb	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mulx	%r15, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r15
+	sbb	%rbx, %r11
+	mulx	%r9, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r9
+	sbb	%rbx, %r11
+	mulx	%rcx, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rcx
+	sbb	%rbx, %r11
+	mulx	%r8, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r8
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	adcx	32(%rsi), %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	adcx	40(%rsi), %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	adcx	48(%rsi), %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	adcx	56(%rsi), %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1324
+.Lq8d1325:
+	mov	72(%rsp), %rbp
+	sar	$2, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1326:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	add	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$0, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	movq	$0, 80(%rsp)	/* R before: 0 */
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1327
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mov	%rbx, %r11
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%rbp, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1327:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1328
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r12, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1328:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1329
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r14, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1329:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1331
+	.p2align	4
+.Lq8l1330:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	adc	32(%r10), %r9
+	adc	40(%r10), %rcx
+	adc	48(%r10), %r8
+	adc	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	shrd	$3, %r9, %r15
+	shrd	$3, %rcx, %r9
+	shrd	$3, %r8, %rcx
+	shrd	$3, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	adc	32(%rsi), %r15
+	adc	40(%rsi), %r9
+	adc	48(%rsi), %rcx
+	adc	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	mulx	%r15, %r15, %rbx
+	adcx	%r11, %r15
+	adox	%r14, %r15	/* -q */
+	mulx	%r9, %r9, %r11
+	adcx	%rbx, %r9
+	adox	%r15, %r9	/* -q */
+	mulx	%rcx, %rcx, %rbx
+	adcx	%r11, %rcx
+	adox	%r9, %rcx	/* -q */
+	mulx	%r8, %r8, %r11
+	adcx	%rbx, %r8
+	adox	%rcx, %r8	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r8, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	adcx	32(%rsi), %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	adcx	40(%rsi), %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	adcx	48(%rsi), %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	adcx	56(%rsi), %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1330
+.Lq8d1331:
+	mov	72(%rsp), %rbp
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp
+	add	80(%rsp), %rbp	/* -q */
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1332:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	sub	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$0, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	movq	$0, 80(%rsp)	/* R before: 0 */
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1333
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mov	%rbx, %r11
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%rbp, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1333:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1334
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r12, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1334:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1335
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r14, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1335:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1337
+	.p2align	4
+.Lq8l1336:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	sbb	32(%r10), %r9
+	sbb	40(%r10), %rcx
+	sbb	48(%r10), %r8
+	sbb	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	shrd	$3, %r9, %r15
+	shrd	$3, %rcx, %r9
+	shrd	$3, %r8, %rcx
+	shrd	$3, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	adc	32(%rsi), %r15
+	adc	40(%rsi), %r9
+	adc	48(%rsi), %rcx
+	adc	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	mulx	%r15, %r15, %rbx
+	adcx	%r11, %r15
+	adox	%r14, %r15	/* -q */
+	mulx	%r9, %r9, %r11
+	adcx	%rbx, %r9
+	adox	%r15, %r9	/* -q */
+	mulx	%rcx, %rcx, %rbx
+	adcx	%r11, %rcx
+	adox	%r9, %rcx	/* -q */
+	mulx	%r8, %r8, %r11
+	adcx	%rbx, %r8
+	adox	%rcx, %r8	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r8, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	adcx	32(%rsi), %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	adcx	40(%rsi), %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	adcx	48(%rsi), %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	adcx	56(%rsi), %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1336
+.Lq8d1337:
+	mov	72(%rsp), %rbp
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp
+	add	80(%rsp), %rbp	/* -q */
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1338:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	add	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$-1, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	movq	$0, 80(%rsp)	/* R before: 0 */
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1339
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mov	%rbx, %r11
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%rbp, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1339:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1340
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r12, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1340:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1341
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r14, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1341:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1343
+	.p2align	4
+.Lq8l1342:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	adc	32(%r10), %r9
+	adc	40(%r10), %rcx
+	adc	48(%r10), %r8
+	adc	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	shrd	$3, %r9, %r15
+	shrd	$3, %rcx, %r9
+	shrd	$3, %r8, %rcx
+	shrd	$3, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	sbb	32(%rsi), %r15
+	sbb	40(%rsi), %r9
+	sbb	48(%rsi), %rcx
+	sbb	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	mulx	%r15, %r15, %rbx
+	adcx	%r11, %r15
+	adox	%r14, %r15	/* -q */
+	mulx	%r9, %r9, %r11
+	adcx	%rbx, %r9
+	adox	%r15, %r9	/* -q */
+	mulx	%rcx, %rcx, %rbx
+	adcx	%r11, %rcx
+	adox	%r9, %rcx	/* -q */
+	mulx	%r8, %r8, %r11
+	adcx	%rbx, %r8
+	adox	%rcx, %r8	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r8, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	mov	32(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	mov	40(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	mov	48(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	mov	56(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1342
+.Lq8d1343:
+	mov	72(%rsp), %rbp
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp
+	add	80(%rsp), %rbp	/* -q */
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1344:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	sub	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$-1, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	movq	$0, 80(%rsp)	/* R before: 0 */
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1345
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mov	%rbx, %r11
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%rbp, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1345:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1346
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r12, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1346:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1347
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r14, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1347:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1349
+	.p2align	4
+.Lq8l1348:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	sbb	32(%r10), %r9
+	sbb	40(%r10), %rcx
+	sbb	48(%r10), %r8
+	sbb	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	shrd	$3, %r9, %r15
+	shrd	$3, %rcx, %r9
+	shrd	$3, %r8, %rcx
+	shrd	$3, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	sbb	32(%rsi), %r15
+	sbb	40(%rsi), %r9
+	sbb	48(%rsi), %rcx
+	sbb	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	xor	%eax, %eax		/* CF = OF = 0, rax 0 */
+	mulx	%rbp, %rbp, %rbx
+	adcx	%r11, %rbp
+	adox	80(%rsp), %rbp	/* -q */
+	mulx	%r12, %r12, %r11
+	adcx	%rbx, %r12
+	adox	%rbp, %r12	/* -q */
+	mulx	%r13, %r13, %rbx
+	adcx	%r11, %r13
+	adox	%r12, %r13	/* -q */
+	mulx	%r14, %r14, %r11
+	adcx	%rbx, %r14
+	adox	%r13, %r14	/* -q */
+	mulx	%r15, %r15, %rbx
+	adcx	%r11, %r15
+	adox	%r14, %r15	/* -q */
+	mulx	%r9, %r9, %r11
+	adcx	%rbx, %r9
+	adox	%r15, %r9	/* -q */
+	mulx	%rcx, %rcx, %rbx
+	adcx	%r11, %rcx
+	adox	%r9, %rcx	/* -q */
+	mulx	%r8, %r8, %r11
+	adcx	%rbx, %r8
+	adox	%rcx, %r8	/* -q */
+	adcx	%rax, %r11		/* both carries in */
+	adox	%rax, %r11
+	mov	%r8, 80(%rsp)
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	mov	32(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	mov	40(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	mov	48(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	mov	56(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1348
+.Lq8d1349:
+	mov	72(%rsp), %rbp
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rbp, %rbx
+	add	%r11, %rbp
+	add	80(%rsp), %rbp	/* -q */
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1350:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	add	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$-1, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1351
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1351:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1352
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1352:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1353
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1353:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1355
+	.p2align	4
+.Lq8l1354:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	adc	32(%r10), %r9
+	adc	40(%r10), %rcx
+	adc	48(%r10), %r8
+	adc	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	shrd	$3, %r9, %r15
+	shrd	$3, %rcx, %r9
+	shrd	$3, %r8, %rcx
+	shrd	$3, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	adc	32(%rsi), %r15
+	adc	40(%rsi), %r9
+	adc	48(%rsi), %rcx
+	adc	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mulx	%r15, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r15
+	sbb	%rbx, %r11
+	mulx	%r9, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r9
+	sbb	%rbx, %r11
+	mulx	%rcx, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rcx
+	sbb	%rbx, %r11
+	mulx	%r8, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r8
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	mov	32(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	mov	40(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	mov	48(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	mov	56(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1354
+.Lq8d1355:
+	mov	72(%rsp), %rbp
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1356:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	sub	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$-1, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1357
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1357:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1358
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1358:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1359
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1359:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1361
+	.p2align	4
+.Lq8l1360:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	sbb	32(%r10), %r9
+	sbb	40(%r10), %rcx
+	sbb	48(%r10), %r8
+	sbb	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	shrd	$3, %r9, %r15
+	shrd	$3, %rcx, %r9
+	shrd	$3, %r8, %rcx
+	shrd	$3, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	adc	0(%rsi), %rbp
+	adc	8(%rsi), %r12
+	adc	16(%rsi), %r13
+	adc	24(%rsi), %r14
+	adc	32(%rsi), %r15
+	adc	40(%rsi), %r9
+	adc	48(%rsi), %rcx
+	adc	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mulx	%r15, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r15
+	sbb	%rbx, %r11
+	mulx	%r9, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r9
+	sbb	%rbx, %r11
+	mulx	%rcx, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rcx
+	sbb	%rbx, %r11
+	mulx	%r8, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r8
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	mov	8(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	mov	16(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	mov	24(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	mov	32(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	mov	40(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	mov	48(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	mov	56(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1360
+.Lq8d1361:
+	mov	72(%rsp), %rbp
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)
+	adc	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	mov	0(%rsi), %rbx
+	not	%rbx
+	adcx	%rbx, %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	lea	-1(%rcx,%rbx), %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1362:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	add	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$0, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1363
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1363:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1364
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1364:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1365
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1365:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1367
+	.p2align	4
+.Lq8l1366:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	adc	0(%r10), %r12
+	adc	8(%r10), %r13
+	adc	16(%r10), %r14
+	adc	24(%r10), %r15
+	adc	32(%r10), %r9
+	adc	40(%r10), %rcx
+	adc	48(%r10), %r8
+	adc	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	shrd	$3, %r9, %r15
+	shrd	$3, %rcx, %r9
+	shrd	$3, %r8, %rcx
+	shrd	$3, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	sbb	32(%rsi), %r15
+	sbb	40(%rsi), %r9
+	sbb	48(%rsi), %rcx
+	sbb	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mulx	%r15, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r15
+	sbb	%rbx, %r11
+	mulx	%r9, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r9
+	sbb	%rbx, %r11
+	mulx	%rcx, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rcx
+	sbb	%rbx, %r11
+	mulx	%r8, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r8
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	adcx	32(%rsi), %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	adcx	40(%rsi), %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	adcx	48(%rsi), %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	adcx	56(%rsi), %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1366
+.Lq8d1367:
+	mov	72(%rsp), %rbp
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8m1368:
+	lea	-1(%r9), %r9
+	mov	%r9, 40(%rsp)
+	lea	8(%r10,%r9,8), %rax
+	mov	%rax, 48(%rsp)	/* x's end */
+	mov	(%r10), %rax
+	sub	(%rcx), %rax	/* s0 */
+	setnc	0(%rsp)
+	mov	%rax, 72(%rsp)
+	lea	8(%r10), %r10
+	movq	$1, 8(%rsp)
+	movq	$1, 16(%rsp)
+	movq	$0, 24(%rsp)
+	movq	$0, 32(%rsp)
+	mov	$0, %r11
+	mov	56(%rsp), %rdx
+	testb	$1, 40(%rsp)
+	jz	.Lq8b1369
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r12, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	8(%r10), %r10
+	lea	8(%rsi), %rsi
+.Lq8b1369:
+	testb	$2, 40(%rsp)
+	jz	.Lq8b1370
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r13, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	16(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	16(%r10), %r10
+	lea	16(%rsi), %rsi
+.Lq8b1370:
+	testb	$4, 40(%rsp)
+	jz	.Lq8b1371
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%r15, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	32(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	32(%r10), %r10
+	lea	32(%rsi), %rsi
+.Lq8b1371:
+	cmp	48(%rsp), %r10
+	je	.Lq8d1373
+	.p2align	4
+.Lq8l1372:
+	mov	72(%rsp), %rbp
+	mov	0(%r10), %r12
+	mov	8(%r10), %r13
+	mov	16(%r10), %r14
+	mov	24(%r10), %r15
+	mov	32(%r10), %r9
+	mov	40(%r10), %rcx
+	mov	48(%r10), %r8
+	mov	56(%r10), %rbx
+	add	%rdx, %r10		/* y */
+	cmpb	$1, 0(%rsp)
+	sbb	0(%r10), %r12
+	sbb	8(%r10), %r13
+	sbb	16(%r10), %r14
+	sbb	24(%r10), %r15
+	sbb	32(%r10), %r9
+	sbb	40(%r10), %rcx
+	sbb	48(%r10), %r8
+	sbb	56(%r10), %rbx
+	setnc	0(%rsp)
+	sub	%rdx, %r10		/* x */
+	mov	%rbx, 72(%rsp)
+	shrd	$3, %r12, %rbp
+	shrd	$3, %r13, %r12
+	shrd	$3, %r14, %r13
+	shrd	$3, %r15, %r14
+	shrd	$3, %r9, %r15
+	shrd	$3, %rcx, %r9
+	shrd	$3, %r8, %rcx
+	shrd	$3, %rbx, %r8
+	cmpb	$1, 8(%rsp)
+	sbb	0(%rsi), %rbp
+	sbb	8(%rsi), %r12
+	sbb	16(%rsi), %r13
+	sbb	24(%rsi), %r14
+	sbb	32(%rsi), %r15
+	sbb	40(%rsi), %r9
+	sbb	48(%rsi), %rcx
+	sbb	56(%rsi), %r8
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	sbb	%rbx, %r11
+	mulx	%r12, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r12
+	sbb	%rbx, %r11
+	mulx	%r13, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r13
+	sbb	%rbx, %r11
+	mulx	%r14, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r14
+	sbb	%rbx, %r11
+	mulx	%r15, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r15
+	sbb	%rbx, %r11
+	mulx	%r9, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r9
+	sbb	%rbx, %r11
+	mulx	%rcx, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rcx
+	sbb	%rbx, %r11
+	mulx	%r8, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %r8
+	sbb	%rbx, %r11
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	sbb	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	sbb	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	sbb	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	sbb	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	sbb	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	sbb	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	sbb	%r8, %rax
+	mov	%rax, 56(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	mov	8(%rdi), %rax
+	adcx	8(%rsi), %rax
+	adox	%r12, %rax
+	mov	%rax, 8(%rdi)
+	mov	16(%rdi), %rax
+	adcx	16(%rsi), %rax
+	adox	%r13, %rax
+	mov	%rax, 16(%rdi)
+	mov	24(%rdi), %rax
+	adcx	24(%rsi), %rax
+	adox	%r14, %rax
+	mov	%rax, 24(%rdi)
+	mov	32(%rdi), %rax
+	adcx	32(%rsi), %rax
+	adox	%r15, %rax
+	mov	%rax, 32(%rdi)
+	mov	40(%rdi), %rax
+	adcx	40(%rsi), %rax
+	adox	%r9, %rax
+	mov	%rax, 40(%rdi)
+	mov	48(%rdi), %rax
+	adcx	48(%rsi), %rax
+	adox	%rcx, %rax
+	mov	%rax, 48(%rdi)
+	mov	56(%rdi), %rax
+	adcx	56(%rsi), %rax
+	adox	%r8, %rax
+	mov	%rax, 56(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	64(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	lea	64(%r10), %r10
+	lea	64(%rsi), %rsi
+	cmp	48(%rsp), %r10
+	jne	.Lq8l1372
+.Lq8d1373:
+	mov	72(%rsp), %rbp
+	sar	$3, %rbp
+	cmpb	$1, 8(%rsp)
+	sbb	(%rsi), %rbp
+	setnc	8(%rsp)
+	movabs	$0x3333333333333333, %rdx	/* (B-1)/5 */
+	mulx	%rbp, %rax, %rbx
+	sub	%rax, %r11
+	mov	%r11, %rbp
+	mov	64(%rsp), %rdx	/* a2 - a1 */
+	cmpb	$1, 16(%rsp)
+	mov	0(%rdi), %rax
+	sbb	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	setnc	16(%rsp)
+	add	%rdx, %rdi		/* a2 */
+	cmpb	$0x81, 32(%rsp)	/* OF back, CF = 1 */
+	mov	$0, %rax
+	adcx	24(%rsp), %rax	/* CF back */
+	mov	0(%rdi), %rax
+	adcx	0(%rsi), %rax
+	adox	%rbp, %rax
+	mov	%rax, 0(%rdi)
+	seto	32(%rsp)
+	sbb	%rbx, %rbx
+	mov	%rbx, 24(%rsp)	/* -CF4 */
+	sub	%rdx, %rdi		/* a1 */
+	lea	8(%rdi), %rdi
+	mov	56(%rsp), %rdx	/* y - x */
+	shr	$63, %rbp
+	movzbl	16(%rsp), %eax	/* 1 - b3 */
+	lea	-1(%rax,%rbp), %rax
+	mov	%eax, %eax
+	mov	(%rsi), %rbx
+	shr	$63, %rbx		/* tc */
+	movzbl	32(%rsp), %ecx
+	sub	24(%rsp), %rcx	/* CF4 + OF5 */
+	sub	%rbx, %rcx
+	sub	%rbp, %rcx
+	shl	$32, %rcx
+	or	%rcx, %rax
+	jmp	.Lq8e1277
+.Lq8e1277:
+	add	$88, %rsp
+	pop	%r15
+	pop	%r14
+	pop	%r13
+	pop	%r12
+	pop	%rbp
+	pop	%rbx
+	ret
+	.size	gtc_tc5q8_n, .-gtc_tc5q8_n
+#endif
 	.section	.note.GNU-stack,"",@progbits
 #endif

@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: BSD-3-Clause-Clear
 #
 #   make                 the library (build/libgtc.a, build/libgtc.so), the
-#                        benchmark and the tuner
+#                        benchmarks and the tuner
 #   make check           the tests
 #   make install         PREFIX=/usr/local, DESTDIR for staging
 #   make NO_ASM=1        the portable C build, without gtc's assembly
@@ -18,7 +18,7 @@
 # calls, is taken from the GMP 6.3.0 source by tools/fetch_gmp.sh, which
 # downloads it once (GMP_TARBALL=path uses a local copy).
 
-VERSION = 0.1.0
+VERSION = 0.1.1
 SOMAJOR = 0
 
 ARCH    := $(shell uname -m)
@@ -69,7 +69,7 @@ PIC_OBJS = $(OBJS:$(B)/%=$(B)/pic/%)
 
 SHLIB   = libgtc.so.$(VERSION)
 LIBS    = $(B)/libgtc.a $(B)/$(SHLIB)
-BINS    = $(B)/bench_gtc $(B)/tune_gauss
+BINS    = $(B)/bench_gtc $(B)/bench_gauss $(B)/tune_gauss
 
 all: $(LIBS) $(BINS)
 
@@ -124,6 +124,10 @@ $(B)/bench_gtc: bench/bench_gtc.c $(B)/libgtc.a $(HDRS)
 	$(CC) $(ALL_CFLAGS) -o $@ bench/bench_gtc.c $(B)/libgtc.a $(LDFLAGS) \
 	  $(LDLIBS) -lm
 
+$(B)/bench_gauss: bench/bench_gauss.c $(B)/libgtc.a $(HDRS)
+	$(CC) $(ALL_CFLAGS) -o $@ bench/bench_gauss.c $(B)/libgtc.a $(LDFLAGS) \
+	  $(LDLIBS) -lm
+
 # The tuner includes src/gtc.c, to time its internal functions.
 $(B)/tune_gauss: bench/tune_gauss.c $(SRC) $(HDRS) $(ASM)
 	$(CC) $(ALL_CFLAGS) -Isrc -o $@ bench/tune_gauss.c $(ASM) $(LDFLAGS) \
@@ -132,22 +136,30 @@ $(B)/tune_gauss: bench/tune_gauss.c $(SRC) $(HDRS) $(ASM)
 # Tests.  test_gtc against GMP; test_helpers white-box, including
 # src/gtc.c.  The C path without the assembly (_c), and with the two-pass
 # halving instead of GMP's mpn_rsh1add_n and mpn_rsh1sub_n, which a GMP
-# built without assembly lacks (_rsh1c).  On x86-64 the Zen's paths as
-# well, whatever the machine (_zen: the C with GTC_ZEN, the assembly with
-# __znver3__).
+# built without assembly lacks (_rsh1c).  On x86-64, whatever the
+# machine, the Zen's paths as well (_zen: the C with GTC_ZEN, the assembly
+# with __znver3__) and the other cores' (_intel: the C and the assembly
+# with the __znver*__ macros undefined), and the Gaussian Toom-5's paths
+# of all the latter at small sizes (_tc5: _intel's with GTC_TC5_TEST).
 TESTS   = $(B)/test_gtc $(B)/test_helpers $(B)/test_gtc_c $(B)/test_gtc_rsh1c
 ifeq ($(ARCH),x86_64)
 ifneq ($(NO_ASM),1)
-TESTS  += $(B)/test_gtc_zen $(B)/test_helpers_zen
+TESTS  += $(B)/test_gtc_zen $(B)/test_helpers_zen $(B)/test_helpers_intel \
+	  $(B)/test_gtc_tc5
 endif
 endif
 ZEN_ASM = $(ASM_S:src/%.S=$(B)/zen/%.o)
+NOZEN   = -U__znver1__ -U__znver2__ -U__znver3__ -U__znver4__ -U__znver5__
+INTEL_ASM = $(ASM_S:src/%.S=$(B)/intel/%.o)
 
-$(B)/zen:
+$(B)/zen $(B)/intel:
 	mkdir -p $@
 
 $(B)/zen/%.o: src/%.S | $(B)/zen
 	$(CC) $(ALL_CFLAGS) -D__znver3__ -c -o $@ $<
+
+$(B)/intel/%.o: src/%.S | $(B)/intel
+	$(CC) $(ALL_CFLAGS) $(NOZEN) -c -o $@ $<
 
 $(B)/test_gtc: tests/test_gtc.c $(B)/libgtc.a $(HDRS)
 	$(CC) $(ALL_CFLAGS) -o $@ tests/test_gtc.c $(B)/libgtc.a $(LDFLAGS) \
@@ -172,6 +184,14 @@ $(B)/test_gtc_zen: tests/test_gtc.c $(SRC) $(HDRS) $(ZEN_ASM)
 $(B)/test_helpers_zen: tests/test_helpers.c $(SRC) $(HDRS) $(ZEN_ASM)
 	$(CC) $(ALL_CFLAGS) -DGTC_ZEN=1 -Isrc -o $@ tests/test_helpers.c \
 	  $(ZEN_ASM) $(LDFLAGS) $(LDLIBS)
+
+$(B)/test_helpers_intel: tests/test_helpers.c $(SRC) $(HDRS) $(INTEL_ASM)
+	$(CC) $(ALL_CFLAGS) $(NOZEN) -Isrc -o $@ tests/test_helpers.c \
+	  $(INTEL_ASM) $(LDFLAGS) $(LDLIBS)
+
+$(B)/test_gtc_tc5: tests/test_gtc.c $(SRC) $(HDRS) $(INTEL_ASM)
+	$(CC) $(ALL_CFLAGS) $(NOZEN) -DGTC_TC5_TEST -o $@ tests/test_gtc.c \
+	  src/gtc.c $(INTEL_ASM) $(LDFLAGS) $(LDLIBS)
 
 # Each test's output to its .log, the last line shown, the whole on failure.
 RUN = run () { echo "== $$*"; "$$@" > $$1.log 2>&1 || { cat $$1.log; \
